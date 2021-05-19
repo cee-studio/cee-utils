@@ -1,4 +1,5 @@
 #!/bin/bash
+mypath=$(dirname $(readlink -f $0))
 url="https://raw.githubusercontent.com/cee-studio/core-utils/master"
 
 list="debug.h
@@ -28,8 +29,11 @@ utringbuffer.h
 utstack.h
 utstring.h"
 
+mkdir -p $mypath/core-utils
+pushd $mypath/core-utils
 for i in $list; do
     echo "getting $i"
     echo "$url/$i"
     wget $url/$i -O $i
 done
+popd
