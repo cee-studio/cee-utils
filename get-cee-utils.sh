@@ -1,6 +1,6 @@
 #!/bin/bash
 mypath=$(dirname $(readlink -f $0))
-url="https://raw.githubusercontent.com/cee-studio/core-utils/master"
+url="https://raw.githubusercontent.com/cee-studio/cee-utils/master"
 
 list="debug.h
 jsmn.h
@@ -29,8 +29,8 @@ utringbuffer.h
 utstack.h
 utstring.h"
 
-mkdir -p $mypath/core-utils
-pushd $mypath/core-utils
+mkdir -p $mypath/cee-utils
+pushd $mypath/cee-utils
 for i in $list; do
     echo "getting $i"
     echo "$url/$i"
