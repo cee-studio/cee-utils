@@ -62,11 +62,14 @@ typedef void** ntl_t;
  */
 #define NTL_T(t)  t**
 
+
+typedef void (*ntl_init_cb)(void *);
+
 /*
  * this is the preferred method to allocate a ntl
  * if init is NULL, it is the same as ntl_calloc
  */
-ntl_t ntl_calloc_init(size_t nelems, size_t elem_size, void (*init)(void *));
+ntl_t ntl_calloc_init(size_t nelems, size_t elem_size, ntl_init_cb init_cb);
 
 
 /*
@@ -79,7 +82,7 @@ ntl_t ntl_calloc(size_t nelems,  size_t elem_size);
  * please use ntl_calloc_init unless you have a very good reason to use this
  * if init is NULL, it is the same as ntl_malloc
  */
-ntl_t ntl_malloc_init(size_t nelems, size_t elem_size, void (*init)(void *));
+ntl_t ntl_malloc_init(size_t nelems, size_t elem_size, ntl_init_cb init_cb);
 
 
 /*
@@ -88,7 +91,7 @@ ntl_t ntl_malloc_init(size_t nelems, size_t elem_size, void (*init)(void *));
 ntl_t ntl_malloc(size_t nelems,  size_t elem_size);
 
 
-ntl_t ntl_realloc_init(void **p, size_t new_nelems, size_t elem_size, void (*init)(void *));
+ntl_t ntl_realloc_init(void **p, size_t new_nelems, size_t elem_size, ntl_init_cb init_cb);
 
 /*
  * duplicate a ntl
