@@ -28,11 +28,11 @@ list(APPEND TESTS
   test-spec.c)
 
 foreach(_t ${TESTS})
-  list(APPEND TEST_SRC  ${CMAKE_SOURCE_DIR}/test/${_t})
-  add_executable(${_t}.exe ${CMAKE_SOURCE_DIR}/test/${_t})
+  list(APPEND TEST_SRC  ${TEST_DIR}/${_t})
+  add_executable(${_t}.exe ${TEST_DIR}/${_t})
   target_link_libraries(${_t}.exe cee-utils)
   add_test(
     NAME ${_t}.exe
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/test
+    WORKING_DIRECTORY ${TEST_DIR}
     COMMAND ${_t}.exe)
 endforeach()
