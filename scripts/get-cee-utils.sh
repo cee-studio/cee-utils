@@ -29,8 +29,8 @@ utringbuffer.h
 utstack.h
 utstring.h"
 
-mkdir -p $mypath/cee-utils
-pushd $mypath/cee-utils
+mkdir -p $mypath/../cee-utils
+pushd $mypath/../cee-utils
 for i in $list; do
     echo "getting $i"
     echo "$url/$i"
