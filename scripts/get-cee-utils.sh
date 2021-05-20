@@ -24,8 +24,6 @@ ntl.c
 ntl.h
 orka-utils.c
 orka-utils.h
-user-agent.c
-user-agent.h
 utarray.h
 utf8.h
 uthash.h

@@ -3,7 +3,7 @@ project(cee-utils)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE DEBUG)
-set(CMAKE_C_FLAGS "-DLIBDISCORD_DEBUG -D_XOPEN_SOURCE=700 -D_DISCORD_ADD_ONS -DBEARSSL")
+set(CMAKE_C_FLAGS "-D_XOPEN_SOURCE=700")
 set(CMAKE_EXE_LINKER_FLAGS "-static")
 include_directories(${CMAKE_SOURCE_DIR})
 
@@ -23,6 +23,7 @@ list(APPEND TESTS
   test-json-actor.c
   test-json-extractor.c
   test-utf8.c
+  test-ns.c
   test-ntl.c
   test-json-struct.c
   test-spec.c)
