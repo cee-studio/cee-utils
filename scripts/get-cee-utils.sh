@@ -2,7 +2,7 @@
 mypath=$(dirname $(readlink -f $0))
 url="https://raw.githubusercontent.com/cee-studio/cee-utils/master"
 
-wget $url/get-cee-utils.sh -O ${mypath}/get-cee-utils.sh
+wget $url/scripts/get-cee-utils.sh -O ${mypath}/get-cee-utils.sh
 
 list="debug.h
 cee-sqlite3.h
