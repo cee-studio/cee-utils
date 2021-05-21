@@ -17,9 +17,11 @@ struct cee_sqlite3_bind_info {
   enum type {
     INT,
     INT64,
-    TEXT
+    TEXT,
+    BLOB
   } type;
   void * value;
+  size_t size;
 };
 
 struct cee_sqlite3_iu {
@@ -30,7 +32,9 @@ struct cee_sqlite3_iu {
 };
 
 
-extern int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs, char *sql, sqlite3_stmt **res_p);
+extern int cee_sqlite3_bind_run_sql(sqlite3 *db, 
+                                    struct cee_sqlite3_bind_info *pairs, 
+				    char *sql, sqlite3_stmt **res_p);
 
 extern void cee_sqlite_3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p);
 

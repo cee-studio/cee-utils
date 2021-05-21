@@ -95,7 +95,10 @@ int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
           sqlite3_bind_int64(res, idx, *(int64_t *)pairs[i].value);
           break;
         case TEXT:
-          sqlite3_bind_text(res, idx, (char*)pairs[i].value, -1, (f0)0);
+          sqlite3_bind_text(res, idx, (char*)pairs[i].value, -1, SQLITE_TRANSIENT);
+          break;
+        case BLOB:
+          sqlite3_bind_blob(res, idx, (void*)pairs[i].value, pairs[i].size, SQLITE_TRANSIENT);
           break;
       }
     }
