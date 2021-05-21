@@ -5,6 +5,8 @@ url="https://raw.githubusercontent.com/cee-studio/cee-utils/master"
 wget $url/get-cee-utils.sh -O ${mypath}/scripts/get-cee-utils.sh
 
 list="debug.h
+cee-sqlite3.h
+cee-sqlite3.c
 jsmn.h
 json-actor-boxed.c
 json-actor-boxed.h
