@@ -73,7 +73,6 @@ sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)
   return db;
 }
 
-typedef void (*f0)(void *);
 int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
   char *sql, sqlite3_stmt **res_p)
 {
@@ -95,10 +94,10 @@ int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
           sqlite3_bind_int64(res, idx, *(int64_t *)pairs[i].value);
           break;
         case TEXT:
-          sqlite3_bind_text(res, idx, (char*)pairs[i].value, -1, SQLITE_TRANSIENT);
+          sqlite3_bind_text(res, idx, (char*)pairs[i].value, -1, SQLITE_STATIC);
           break;
         case BLOB:
-          sqlite3_bind_blob(res, idx, (void*)pairs[i].value, pairs[i].size, SQLITE_TRANSIENT);
+          sqlite3_bind_blob(res, idx, (void*)pairs[i].value, pairs[i].size, SQLITE_STATIC);
           break;
       }
     }
