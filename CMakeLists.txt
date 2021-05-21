@@ -3,7 +3,7 @@ project(cee-utils)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE DEBUG)
-set(CMAKE_C_FLAGS "-D_XOPEN_SOURCE=700")
+set(CMAKE_C_FLAGS "-D_XOPEN_SOURCE=700 -DCEE_USE_SQLITE3")
 set(CMAKE_EXE_LINKER_FLAGS "-static")
 include_directories(${CMAKE_SOURCE_DIR})
 
