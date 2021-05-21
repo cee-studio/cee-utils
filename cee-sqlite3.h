@@ -1,7 +1,7 @@
 #ifndef CEE_SQLITE3_H
 #define CEE_SQLITE3_H
 
-#if defined(CEE_USE_SQLIT3)
+#if defined(CEE_USE_SQLITE3)
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>

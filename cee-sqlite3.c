@@ -1,4 +1,4 @@
-#if defined(CEE_USE_SQLIT3)
+#if defined(CEE_USE_SQLITE3)
 #include "cee-sqlite3.h"
 
 sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)
@@ -47,7 +47,23 @@ sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)
   ;
 
   char *err_msg=NULL;
+  rc = sqlite3_exec(db, "begin transaction;", 0, 0, &err_msg);
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "SQL error: %s\n", err_msg);
+    sqlite3_free(err_msg);
+    sqlite3_close(db);
+    return NULL;
+  }
+
   rc = sqlite3_exec(db, sqlstmts, 0, 0, &err_msg);
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "SQL error: %s\n", err_msg);
+    sqlite3_free(err_msg);
+    sqlite3_close(db);
+    return NULL;
+  }
+
+  rc = sqlite3_exec(db, "commit;", 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
