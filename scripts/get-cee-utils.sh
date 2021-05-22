@@ -28,6 +28,10 @@ orka-utils.c
 orka-utils.h
 utarray.h
 url-encode.h
+hmac.h
+hmac_sha1.c
+sha.h
+sha1.c
 utf8.h
 uthash.h
 utlist.h
