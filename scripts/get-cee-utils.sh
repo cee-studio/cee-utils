@@ -27,6 +27,7 @@ ntl.h
 orka-utils.c
 orka-utils.h
 utarray.h
+url-encode.h
 utf8.h
 uthash.h
 utlist.h
