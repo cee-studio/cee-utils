@@ -32,12 +32,6 @@ void hmac_sha1(const uint8_t *k,  /* secret key */
         size_t ld,       /* length of data in bytes */
         uint8_t *out,      /* output buffer, at least "t" bytes */
         size_t *t) {
-#ifdef USE_OPENSSL
-
-	if (!HMAC(EVP_sha1(), k, (int)lk, d, ld, out, t)) {
-		ERR_clear_error();
-	}
-#else
     SHA_CTX ictx, octx;
     uint8_t isha[SHA_DIGEST_LENGTH], osha[SHA_DIGEST_LENGTH];
     uint8_t key[SHA_DIGEST_LENGTH];
@@ -93,5 +87,4 @@ void hmac_sha1(const uint8_t *k,  /* secret key */
     /* truncate and print the results */
     *t = *t > SHA_DIGEST_LENGTH ? SHA_DIGEST_LENGTH : *t;
     memcpy(out, osha, *t);
-#endif
 }

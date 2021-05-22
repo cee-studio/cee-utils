@@ -1755,6 +1755,10 @@ prepare_actor(
   return 1;
 }
 
+/*
+ *
+ * return the number of bytes written (excluding the null terminator)
+ */
 size_t
 json_vinject(
   char *pos,
@@ -1812,6 +1816,14 @@ json_vinject(
   (void)write_only;
 }
 
+/*
+ * buf_p:  points to a memory block to hold the allocated memory block
+ *
+ * on return:
+ *      the number of bytes written (excluding the null terminator)
+ *      buf_p points a null terminated JSON string
+ *
+ */
 size_t json_ainject (char ** buf_p, char * injector, ...)
 {
   va_list ap;
