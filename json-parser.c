@@ -81,7 +81,7 @@ typedef struct json_composite_s {
  *  union {string, d_number, i_number, boolean, comp}:
  *      string,d_number,i_number,boolean: item literal value, denoted 
  *      by its type.  */
-typedef struct json_item_s {
+struct json_item_s {
     union {
         struct sized_buffer string;
         long double number;
@@ -92,7 +92,7 @@ typedef struct json_item_s {
 
     char *key;
     struct json_item_s *parent;
-} json_item_t;
+};
 
 struct _parse_context {
     char *buffer;
