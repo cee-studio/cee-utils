@@ -33,7 +33,7 @@ static void url_encode(const char *s, char *enc) {
   return;
 }
 
-static void urldecode2(char *dst, const char *src)
+static void url_decode(char *dst, const char *src)
 {
   char a, b;
   while (*src) {
