@@ -967,7 +967,7 @@ json_get_child(json_item_t *item, const char *key)
     size_t i=0, len;
     while (i < json_size(ji)) {
         len = strlen(ji->comp->branch[i]->key);
-        if (STRNEQ(ji->comp->branch[i]->key, key, len)) {
+        if (STREQ(ji->comp->branch[i]->key, key)) {
             if ('.' == key[len]) {
                 ji = ji->comp->branch[i]; // get child
                 i = 0; // reset branch counter
