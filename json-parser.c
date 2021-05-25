@@ -965,16 +965,22 @@ json_get_child(json_item_t *item, const char *key)
       and retrieve found or not found(NULL) item */
     json_item_t *ji = item;
     size_t i=0, len;
-    while (i < json_size(ji)) {
+    while (i < json_size(ji)) 
+    {
         len = strlen(ji->comp->branch[i]->key);
-        if (STREQ(ji->comp->branch[i]->key, key)) {
-            if ('.' == key[len]) {
+        if (STRNEQ(key, ji->comp->branch[i]->key, len)) 
+        {
+            switch(key[len]) {
+            case '\0': /* equal */
+                return ji->comp->branch[i];
+            case '.': /* equal but have nested */
                 ji = ji->comp->branch[i]; // get child
                 i = 0; // reset branch counter
                 key += len+1; // skip to next key
+            /* fall through */
+            default: /* not really equal */
                 continue;
             }
-            return ji->comp->branch[i];
         }
         ++i;
     }
