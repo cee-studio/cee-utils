@@ -970,15 +970,13 @@ json_get_child(json_item_t *item, const char *key)
         len = strlen(ji->comp->branch[i]->key);
         if (STRNEQ(key, ji->comp->branch[i]->key, len)) 
         {
-            switch(key[len]) {
-            case '\0': /* equal */
+            if ('\0' == key[len]) { /* keys are equal */
                 return ji->comp->branch[i];
-            case '.': /* equal but have nested */
+            }
+            if ('.' == key[len]) { /* parent keys are equal */
                 ji = ji->comp->branch[i]; // get child
                 i = 0; // reset branch counter
                 key += len+1; // skip to next key
-            /* fall through */
-            default: /* not really equal */
                 continue;
             }
         }
