@@ -51,6 +51,7 @@ void log_http(
   struct logconf *config, 
   void *addr_id,
   char url[],
+  struct sized_buffer header,
   struct sized_buffer body,
   char label_fmt[], ...);
 

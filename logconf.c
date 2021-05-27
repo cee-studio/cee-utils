@@ -97,17 +97,21 @@ log_http(
   struct logconf *config, 
   void *addr_id,
   char url[],
+  struct sized_buffer header,
   struct sized_buffer body,
   char label_fmt[], ...)
 {
-  static struct sized_buffer empty_body = {"empty body", 10};
+  static struct sized_buffer empty_header = {"", 0};
+  static struct sized_buffer empty_body = {"", 0};
 
   if (!config) return;
 
   va_list args;
   va_start(args, label_fmt);
 
-  if (0 == body.size)
+  if (!header.size) 
+    header = empty_header;
+  if (!body.size) 
     body = empty_body;
 
   char label[512];
@@ -116,13 +120,16 @@ log_http(
 
   char timestr[64];
   fprintf(config->http.f, 
-    "%s [%s #TID%u] - %s - %s\r\r\r\r\n%.*s\n",
+    "%s [%s #TID%u] - %s - %s\n%.*s%s%.*s\n",
     label,
     logconf_tag(config, addr_id), 
     (unsigned)pthread_self(),
     orka_timestamp_str(timestr, sizeof(timestr)), 
     url,
+    (int)body.size, body.start,
+    body.size ? "\n" : "",
     (int)body.size, body.start);
+  fputs("\r\r\r\r\n", config->http.f);
 
   fflush(config->http.f);
 
