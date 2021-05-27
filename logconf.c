@@ -101,18 +101,10 @@ log_http(
   struct sized_buffer body,
   char label_fmt[], ...)
 {
-  static struct sized_buffer empty_header = {"", 0};
-  static struct sized_buffer empty_body = {"", 0};
-
   if (!config) return;
 
   va_list args;
   va_start(args, label_fmt);
-
-  if (!header.size) 
-    header = empty_header;
-  if (!body.size) 
-    body = empty_body;
 
   char label[512];
   int ret = vsnprintf(label, sizeof(label), label_fmt, args);
@@ -126,8 +118,8 @@ log_http(
     (unsigned)pthread_self(),
     orka_timestamp_str(timestr, sizeof(timestr)), 
     url,
-    (int)body.size, body.start,
-    body.size ? "\n" : "",
+    (int)header.size, header.start,
+    header.size ? "\n" : "",
     (int)body.size, body.start);
   fputs("\r\r\r\r\n", config->http.f);
 
