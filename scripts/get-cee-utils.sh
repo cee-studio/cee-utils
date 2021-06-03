@@ -30,7 +30,7 @@ orka-utils.h
 utarray.h
 url-encode.h
 hmac.h
-hmac_sha1.c
+hmac.c
 teeny-sha1.c
 cee-data-sizes.h
 sha.h
