@@ -31,6 +31,7 @@ url-encode.h
 hmac.h
 hmac_sha1.c
 teeny-sha1.c
+cee-data-sizes.h
 sha.h
 sha1.c
 utf8.h
