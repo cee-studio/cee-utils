@@ -1302,7 +1302,7 @@ json_stringify(json_item_t *root, enum json_type type)
 {
     ASSERT_S(NULL != root, "Missing 'root'");
 
-    struct _stringify_context cxt = {0};
+    struct _stringify_context cxt = { .method = NULL};
 
     /* 1st STEP: remove root->key and root->parent temporarily to make
         sure the given item is treated as a root when printing, in the

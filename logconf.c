@@ -149,7 +149,7 @@ logconf_setup(struct logconf *config, const char config_file[])
       bool enable;
       char filename[PATH_MAX];
     } http;
-  } logging = {0};
+  } logging = { .quiet = 0 }; // set all as zero
 
 
   if (config->contents) {
