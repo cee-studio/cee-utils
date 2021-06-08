@@ -10,3 +10,7 @@ wget https://raw.githubusercontent.com/cee-studio/cee-utils/master/scripts/get-c
 
 many GPL codec
 https://github.com/cantora/avr-crypto-lib
+
+
+single file C unit test
+https://github.com/silentbicycle/greatest
