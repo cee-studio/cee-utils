@@ -1,3 +1,6 @@
+#ifndef CHECK_EMAIL_ADDR_H
+#define CHECK_EMAIL_ADDR_H
+
 #define MAX_EMAIL_NAME  126
 static int check_email_addr(char *EM_Addr) {
   int count = 0;
@@ -71,3 +74,5 @@ static int check_email_addr(char *EM_Addr) {
   } while (*++c); /* while valid char */
   return (count >= 1); /* return true if more than 1 '.' */
 }
+
+#endif /* CHECK_EMAIL_ADDR_H */
