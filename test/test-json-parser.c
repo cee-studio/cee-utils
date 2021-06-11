@@ -1,100 +1,42 @@
-/*
- * Copyright (c) 2020 Lucas Müller
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+#include "greatest.h"
+#include "orka-utils.h"
+#include "ntl.h"
+#include "json-actor.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <stdio.h>
-#include <unistd.h> //for access()
-#include <string.h>
-#include <locale.h>
+GREATEST_MAIN_DEFS();
 
-#include <json-actor.h>
+SUITE(json_parser_suite);
 
-
-char *get_json_text(char filename[]);
-json_item_t *callback_test(json_item_t *item);
-
-int main(int argc, char *argv[])
+TEST expect_stringify_equal_original(void)
 {
-    char *locale = setlocale(LC_CTYPE, "");
-    assert(NULL != locale);
+    size_t size=0;
+    char *str = orka_load_whole_file("json-data/discord-embed.json", &size);
+    json_item_t *root = json_parse(str, size);
+    struct sized_buffer sb = json_stringify(root, JSON_ANY);
+    ASSERT_STRN_EQ(str, sb.start, sb.size);
+    json_cleanup(root);
+    free(sb.start);
 
-    char *json_text = get_json_text(argv[1]);
-
-    json_item_t *root = json_parse(json_text, strlen(json_text));
-
-    struct sized_buffer str = json_stringify(root, JSON_ANY);
-    fprintf(stderr, "%.*s", (int)str.size, str.start);
-
-    return EXIT_SUCCESS;
+    str = "{\"a\":12,\"ab\":481}";
+    size = sizeof("{\"a\":12,\"ab\":481}");
+    root = json_parse(str, size);
+    sb = json_stringify(root, JSON_ANY);
+    ASSERT_STRN_EQ(str, sb.start, sb.size);
+    json_cleanup(root);
+    free(sb.start);
+    PASS();
 }
 
-/* returns file size in long format */
-static long
-fetch_filesize(FILE *p_file)
+SUITE(json_parser_suite)
 {
-    fseek(p_file, 0, SEEK_END);
-    long filesize = ftell(p_file);
-    assert(filesize > 0);
-    fseek(p_file, 0, SEEK_SET);
-
-    return filesize;
+    RUN_TEST(expect_stringify_equal_original);
 }
 
-/* returns file content */
-static char*
-read_file(FILE* p_file, long filesize)
+int main(int argc, char **argv)
 {
-    char *buffer = malloc(filesize+1);
-    assert(NULL != buffer);
+  GREATEST_MAIN_BEGIN();
 
-    //read file into buffer
-    fread(buffer,1,filesize,p_file);
-    buffer[filesize] = 0;
+  RUN_SUITE(json_parser_suite);
 
-    return buffer;
-}
-
-/* returns buffer containing file content */
-char*
-get_json_text(char filename[])
-{
-    FILE *file = fopen(filename, "rb");
-    assert(NULL != file);
-
-    long filesize = fetch_filesize(file);
-    char *buffer = read_file(file, filesize);
-
-    fclose(file);
-
-    return buffer;
-}
-
-json_item_t *callback_test(json_item_t *item)
-{
-    if (NULL != item && json_keycmp(item, "m")){
-        fprintf(stdout, "%s\n", json_get_string(item, NULL));
-    }
-      
-    return item;
+  GREATEST_MAIN_END();
 }
