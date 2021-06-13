@@ -24,8 +24,6 @@ endif
 
 LDFLAGS += -lm
 
-PREFIX ?= /usr/local
-
 .PHONY : all clean
 
 all : mkdir $(OBJS) $(TEST_EXES)
@@ -39,10 +37,9 @@ echo :
 mkdir :
 	mkdir -p $(OBJDIR)/test
 
-#generic compilation
+# generic compilation
 $(OBJDIR)/%.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
-
 %.exe : %.c
 	$(CC) $< $(OBJS) $(CFLAGS) -o $@ $(LDFLAGS)
 

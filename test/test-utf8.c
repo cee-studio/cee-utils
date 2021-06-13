@@ -1,6 +1,7 @@
-#include "utf8.h"
 #include <stdio.h>
 #include <string.h>
+
+#include "utf8.h"
 
 int get_utf8(const char *js, size_t len, char *val8, size_t val8_len) {
   const char *pos_start;

@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include "orka-utils.h"
-#include "json-actor.c"
+#include "json-actor.h"
 
 int main()
 {

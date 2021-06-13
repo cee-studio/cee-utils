@@ -1,8 +1,9 @@
 #include <stdio.h>
-#include "json-actor.h"
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+
+#include "json-actor.h"
 
 int foobar (char * pos, size_t size, void *p)
 {

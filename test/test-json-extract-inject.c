@@ -5,7 +5,7 @@
 
 #include "discord.h"
 #include "orka-utils.h"
-#include "json-actor.c"
+#include "json-actor.h"
 #include "greatest.h"
 
 GREATEST_MAIN_DEFS();

@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <ctype.h>
+
 #include "json-struct.c"
 #include "orka-utils.h"
 
