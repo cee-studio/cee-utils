@@ -3,7 +3,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "discord.h"
 #include "orka-utils.h"
 #include "json-actor.h"
 #include "greatest.h"
