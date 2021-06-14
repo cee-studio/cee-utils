@@ -24,9 +24,20 @@ endif
 
 LDFLAGS += -lm
 
-.PHONY : all clean
+.PHONY : all test clean
 
-all : mkdir $(OBJS) $(TEST_EXES)
+# generic compilation
+$(OBJDIR)/%.o : %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+	
+test/test-json-actor.exe : test/test-json-actor.c
+	$(CC) $< $(filter-out $(OBJDIR)/json-actor.o, $(OBJS)) \
+		$(CFLAGS) -o $@ $(LDFLAGS)
+# generic compilation
+test/test-%.exe : test/test-%.c
+	$(CC) $< $(OBJS) $(CFLAGS) -o $@ $(LDFLAGS)
+
+all : test
 
 echo :
 	@echo SRC $(SRC)
@@ -34,18 +45,13 @@ echo :
 	@echo TEST_SRC $(TEST_SRC)
 	@echo TEST_EXES $(TEST_EXES)
 
-mkdir :
+test : $(TEST_EXES)
+
+$(TEST_EXES) : $(TEST_EXES) | $(OBJS)
+$(OBJS): | $(OBJDIR)
+
+$(OBJDIR) :
 	mkdir -p $(OBJDIR)/test
-
-test/test-json-actor.exe : test/test-json-actor.c
-	$(CC) $< $(filter-out $(OBJDIR)/json-actor.o, $(OBJS)) \
-		$(CFLAGS) -o $@ $(LDFLAGS)
-
-# generic compilation
-$(OBJDIR)/%.o : %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-%.exe : %.c
-	$(CC) $< $(OBJS) $(CFLAGS) -o $@ $(LDFLAGS)
 
 clean : 
 	rm -rf $(OBJDIR) test/*.exe
