@@ -37,6 +37,10 @@ echo :
 mkdir :
 	mkdir -p $(OBJDIR)/test
 
+test/test-json-actor.exe : test/test-json-actor.c
+	$(CC) $< $(filter-out $(OBJDIR)/json-actor.o, $(OBJS)) \
+		$(CFLAGS) -o $@ $(LDFLAGS)
+
 # generic compilation
 $(OBJDIR)/%.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
