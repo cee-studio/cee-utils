@@ -227,8 +227,8 @@ logconf_cleanup(struct logconf *config)
 struct sized_buffer
 logconf_get_field(struct logconf *config, char *json_field)
 {
-  struct sized_buffer field = {0};
-  if (!config || !json_field) return field; // empty field
+  struct sized_buffer field={0};
+  if (!config->len) return field; // empty field
 
   char fmt[512];
   int ret = snprintf(fmt, sizeof(fmt), "(%s):T", json_field);
