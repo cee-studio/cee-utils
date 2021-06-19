@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "orka-utils.h"
+#include "cee-utils.h"
 #include "json-scanf.h"
 #include "json-actor.h"
 
@@ -12,7 +12,7 @@ int main (int argc, char ** argv) {
   }
 
   size_t len = 0;
-  char * json = orka_load_whole_file(argv[1], &len);
+  char * json = cee_load_whole_file(argv[1], &len);
 
   int i;
   json_extract(json, len, "(total):d", &i);

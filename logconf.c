@@ -9,7 +9,7 @@
 
 #include "logconf.h"
 
-#include "orka-utils.h"
+#include "cee-utils.h"
 #include "json-actor.h"
 
 
@@ -116,7 +116,7 @@ log_http(
     label,
     logconf_tag(config, addr_id), 
     (unsigned)pthread_self(),
-    orka_timestamp_str(timestr, sizeof(timestr)), 
+    cee_timestamp_str(timestr, sizeof(timestr)), 
     url,
     (int)header.size, header.start,
     header.size ? "\n" : "",
@@ -157,7 +157,7 @@ logconf_setup(struct logconf *config, const char config_file[])
     config->len = 0;
   }
 
-  config->contents = orka_load_whole_file(config_file, &config->len);
+  config->contents = cee_load_whole_file(config_file, &config->len);
   json_extract(config->contents, config->len,
              "(logging.level):s"
              "(logging.filename):s"

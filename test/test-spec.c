@@ -2,7 +2,7 @@
 #include <ctype.h>
 
 #include "json-struct.c"
-#include "orka-utils.h"
+#include "cee-utils.h"
 
 
 void load_field(struct jc_field *f, char *str)
@@ -146,9 +146,9 @@ int main (int argc, char ** argv)
   SET(field_struct, "u64_snowflake_t f1;\n");
   SET(field_cleanup, "//p->f1 is a scalar\n");
   SET(field_extractor, "\"(f1):F,\"\n");
-  SET(field_extractor_arg, "orka_strtoull, &p->f1,\n");
+  SET(field_extractor_arg, "cee_strtoull, &p->f1,\n");
   SET(field_injector, "\"(f1):|F|,\"\n");
-  SET(field_injector_arg, "orka_ulltostr, &p->f1,\n");
+  SET(field_injector_arg, "cee_ulltostr, &p->f1,\n");
   SET(field_inject_settings, "p->__M.arg_switches[0] = &p->f1;\n");
   SET(field_init, NULL);
   test_one();
@@ -157,9 +157,9 @@ int main (int argc, char ** argv)
   SET(field_struct, "u64_unix_ms_t f1;\n");
   SET(field_cleanup, "//p->f1 is a scalar\n");
   SET(field_extractor, "\"(f1):F,\"\n");
-  SET(field_extractor_arg, "orka_iso8601_to_unix_ms, &p->f1,\n");
+  SET(field_extractor_arg, "cee_iso8601_to_unix_ms, &p->f1,\n");
   SET(field_injector, "\"(f1):|F|,\"\n");
-  SET(field_injector_arg, "orka_unix_ms_to_iso8601, &p->f1,\n");
+  SET(field_injector_arg, "cee_unix_ms_to_iso8601, &p->f1,\n");
   SET(field_inject_settings, "p->__M.arg_switches[0] = &p->f1;\n");
   SET(field_init, NULL);
   test_one();

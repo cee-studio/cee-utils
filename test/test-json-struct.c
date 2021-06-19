@@ -53,7 +53,7 @@ int main (int argc, char **argv)
   char *s;
   size_t len=0;
   if (argc == 2) {
-    s = orka_load_whole_file(argv[1], &len);
+    s = cee_load_whole_file(argv[1], &len);
   }
   else {
     json_asprintf(&s, spec);

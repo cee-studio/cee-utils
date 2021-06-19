@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "orka-utils.h"
+#include "cee-utils.h"
 #include "json-scanf.h"
 #include "json-actor-boxed.h" /* ja_str and functions */
 #include "json-actor.h"
@@ -20,7 +20,7 @@
 
 
 char*
-orka_load_whole_file(const char filename[], size_t *len)
+cee_load_whole_file(const char filename[], size_t *len)
 {
   size_t f_size = 0;
   FILE *f = fopen(filename,"rb");
@@ -42,13 +42,13 @@ orka_load_whole_file(const char filename[], size_t *len)
 }
 
 int
-orka_dati_from_fjson(
+cee_dati_from_fjson(
   char filename[], 
   void *p_data, 
   void (from_json_cb)(char *str, size_t len, void *p_data))
 {
   size_t len;
-  char *json = orka_load_whole_file(filename, &len);
+  char *json = cee_load_whole_file(filename, &len);
   if (NULL == json) return 0;
 
   from_json_cb(json, len, p_data);
@@ -68,42 +68,8 @@ stat_to_type(const struct stat *st)
   }
 }
 
-//@todo rename to orka_list ? this is not referenced in orka-utils.h
 int
-list(void **p, size_t n, char *path)
-{
-  DIR *d = opendir(path);
-  if (!d) return 0; // EARLY RETURN
-
-  int num_files = 0;
-  struct stat st = {0};
-  int fd = dirfd(d);
-  struct dirent *dir;
-  while ((dir = readdir(d)) != NULL) 
-  {
-    if ((0 == strcmp(dir->d_name, ".") || 0 == strcmp(dir->d_name, "..")))
-        continue;
-
-    if (0 == fstatat(fd, dir->d_name, &st, 0)) {
-      char *type = stat_to_type(&st);
-      if (!type) continue;
-
-      if (0 == strcmp(type, "file")) {
-        ++num_files;
-      }
-      else { // nested folder
-        // @todo how should we deal with?
-      }
-    }
-  }
-
-  closedir(d);
-
-  return num_files;
-}
-
-int
-orka_iso8601_to_unix_ms(char *timestamp, size_t len, void *p_data)
+cee_iso8601_to_unix_ms(char *timestamp, size_t len, void *p_data)
 {
   uint64_t *recipient = (uint64_t*)p_data;
   ASSERT_S(NULL != recipient, "No recipient provided by user");
@@ -152,7 +118,7 @@ orka_iso8601_to_unix_ms(char *timestamp, size_t len, void *p_data)
 }
 
 int
-orka_unix_ms_to_iso8601(char *str, size_t len, void *p_data)
+cee_unix_ms_to_iso8601(char *str, size_t len, void *p_data)
 {
   uint64_t *p_timestamp = (uint64_t*)p_data;
   ASSERT_S(NULL != p_timestamp, "No timestamp provided by user");
@@ -172,7 +138,7 @@ orka_unix_ms_to_iso8601(char *str, size_t len, void *p_data)
 }
 
 int
-orka_strtoull(char *str, size_t len, void *p_data) 
+cee_strtoull(char *str, size_t len, void *p_data) 
 {
   char *buf = malloc(len + 1);
 
@@ -190,12 +156,12 @@ orka_strtoull(char *str, size_t len, void *p_data)
 }
 
 int
-orka_ulltostr(char *str, size_t len, void *p_data) {
+cee_ulltostr(char *str, size_t len, void *p_data) {
   return snprintf(str, len, "%" PRIu64 , *(uint64_t*)p_data);
 }
 
 void
-orka_sleep_ms(const int64_t delay_ms)
+cee_sleep_ms(const int64_t delay_ms)
 {
   if (delay_ms < 0) return; /* EARLY RETURN */
 
@@ -208,7 +174,7 @@ orka_sleep_ms(const int64_t delay_ms)
 
 /* returns current timestamp in milliseconds */
 uint64_t
-orka_timestamp_ms()
+cee_timestamp_ms()
 {
   struct timespec t;
   clock_gettime(CLOCK_REALTIME, &t);
@@ -216,7 +182,7 @@ orka_timestamp_ms()
 }
 
 char*
-orka_timestamp_str(char *p_str, int len)
+cee_timestamp_str(char *p_str, int len)
 {
   time_t t = time(NULL);
   struct tm buf;
@@ -228,33 +194,10 @@ orka_timestamp_str(char *p_str, int len)
   return p_str;
 }
 
-#if 0
-static int
-json_load_array (char *  str, size_t len, struct sized_buffer ***p) {
-  return json_scanf(str, len, "[]%A", p);
-}
-
-/*
- * the buf has to contain a string that starts with '[' and ends with ']', and
- * the string represents a legit json array
- *
- * see test/test-json-scanf-array.c for usage examples
- */
-size_t
-orka_str_to_ntl(
-  char *buf,
-  size_t len,
-  struct ntl_deserializer *ntl_deserializer)
-{
-  ntl_deserializer->partition_as_sized_bufs = json_load_array;
-  return ntl_from_buf(buf, len, ntl_deserializer);
-}
-#endif
-
 /* this can be used for checking if a user-given string does not
  *  exceeds a arbitrary threshold length */
 ssize_t
-orka_str_bounds_check(const char *str, const size_t threshold_len)
+cee_str_bounds_check(const char *str, const size_t threshold_len)
 {
   if (!str) return -1; // Missing string
 
@@ -265,13 +208,13 @@ orka_str_bounds_check(const char *str, const size_t threshold_len)
 }
 
 char* 
-orka_join_strings(char** strings, const size_t nmemb, const char delim[], const size_t wordlen, const size_t maxlen)
+cee_join_strings(char** strings, const size_t nmemb, const char delim[], const size_t wordlen, const size_t maxlen)
 {
   char *buf = malloc(maxlen);
   char *cur = buf, * const end = cur + maxlen;
 
   for (size_t i=0; i < nmemb; ++i) {
-    VASSERT_S(orka_str_bounds_check(strings[i], wordlen) > 0, \
+    VASSERT_S(cee_str_bounds_check(strings[i], wordlen) > 0, \
         "'%s' exceeds threshold of %zu characters", strings[i], wordlen);
     cur += snprintf(cur, end-cur, "%s%s", strings[i], delim);
     ASSERT_S(cur < end, "Out of bounds write attempt");
@@ -281,7 +224,7 @@ orka_join_strings(char** strings, const size_t nmemb, const char delim[], const 
   return buf;
 }
 
-void gen_readlink(char *linkbuf, size_t linkbuf_size)
+void cee_gen_readlink(char *linkbuf, size_t linkbuf_size)
 {
   ssize_t r;
   r = readlink("/proc/self/exe", linkbuf, linkbuf_size);
@@ -291,15 +234,14 @@ void gen_readlink(char *linkbuf, size_t linkbuf_size)
   }
 
   if (r > linkbuf_size) {
-    fprintf(stderr, "symlink size is great than %zu\n", linkbuf_size);
+    fprintf(stderr, "symlink size is greater than %zu\n", linkbuf_size);
     exit(EXIT_FAILURE);
   }
   linkbuf[r]='\0';
-  //fprintf (stderr, "readlink = %s\n", linkbuf);
+
   return;
 }
 
-void gen_dirname(char *linkbuf)
-{
+void cee_gen_dirname(char *linkbuf) {
   *strrchr(linkbuf, '/')='\0';
 }

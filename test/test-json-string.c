@@ -1,5 +1,5 @@
 #include "greatest.h"
-#include "orka-utils.h"
+#include "cee-utils.h"
 #include "ntl.h"
 #include "json-actor.h"
 
@@ -12,7 +12,7 @@ TEST expect_unescaped_equal_original(void)
   char *str=NULL, *estr=NULL, *unstr=NULL;
   size_t size=0, estr_size=0, unstr_size=0;
 
-  str = orka_load_whole_file("json-data/discord-embed.json", &size);
+  str = cee_load_whole_file("json-data/discord-embed.json", &size);
   estr = json_string_escape(&estr_size, str, size);
   json_string_unescape(&unstr, &unstr_size, estr, estr_size);
   ASSERT_EQ_FMT(size, unstr_size, "%zu");

@@ -1,5 +1,5 @@
 #include "greatest.h"
-#include "orka-utils.h"
+#include "cee-utils.h"
 #include "ntl.h"
 #include "json-actor.h"
 
@@ -10,7 +10,7 @@ SUITE(json_parser_suite);
 TEST expect_stringify_equal_original(void)
 {
     size_t size=0;
-    char *str = orka_load_whole_file("json-data/discord-embed.json", &size);
+    char *str = cee_load_whole_file("json-data/discord-embed.json", &size);
     json_item_t *root = json_parse(str, size);
     struct sized_buffer sb = json_stringify(root, JSON_ANY);
     ASSERT_STRN_EQ(str, sb.start, sb.size);
