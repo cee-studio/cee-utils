@@ -68,7 +68,7 @@ int main (int argc, char **argv)
   definition_from_json(s, len, &d);
   print_definition(stderr, &d);
   struct emit_option eo = { .type = FILE_SINGLE_FILE };
-  gen_definition(stderr, &eo, &d);
+  gen_definition(NULL, "", &eo, &d);
 
   char *ns ="["
     "[\"A\", \"B\"],"
