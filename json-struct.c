@@ -1678,6 +1678,7 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   fprintf(fp, "  // 1. control which field should be extracted/injected\n");
   fprintf(fp, "  // 2. record which field is presented(defined) in JSON\n");
   fprintf(fp, "  // 3. record which field is null in JSON\n");
+  fputs("/// @cond DOXYGEN_SHOULD_SKIP_THIS\n");
   fprintf(fp, "  struct {\n");
   fprintf(fp, "    bool enable_arg_switches;\n");
   fprintf(fp, "    bool enable_record_defined;\n");
@@ -1686,6 +1687,7 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   fprintf(fp, "    void *record_defined[%d];\n", i);
   fprintf(fp, "    void *record_null[%d];\n", i);
   fprintf(fp, "  } __M; // metadata\n");
+  fputs("/// @endcond\n");
   if (t_alias)
     fprintf(fp, "} %s;\n", t_alias);
   else  
