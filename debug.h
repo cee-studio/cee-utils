@@ -5,7 +5,7 @@
 #include "log.h"
 
 #ifdef __saiph__ // for error tracing purposes
-#  define ABORT()    { static char *p=0; *p=0; /* force a backtrace */  }
+#  define ABORT()    { static char *p="abort"; *p=0; /* force segfault with a backtrace */  }
 #else
 #  define ABORT()    abort()
 #endif
