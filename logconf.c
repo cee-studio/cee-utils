@@ -13,7 +13,9 @@
 #include "json-actor.h"
 
 
-static bool use_color;
+static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
+static size_t g_counter;
+static bool g_first_run = true;
 
 static int
 get_log_level(char level[])
@@ -95,6 +97,7 @@ log_color_cb(log_Event *ev)
 void
 log_http(
   struct logconf *config, 
+  struct loginfo *p_info,
   void *addr_id,
   char url[],
   struct sized_buffer header,
@@ -103,35 +106,48 @@ log_http(
 {
   if (!config) return;
 
-  va_list args;
-  va_start(args, label_fmt);
-
   char label[512];
-  int ret = vsnprintf(label, sizeof(label), label_fmt, args);
+
+  va_list label_args;
+  va_start(label_args, label_fmt);
+
+  size_t ret = vsnprintf(label, sizeof(label), label_fmt, label_args);
   ASSERT_S(ret < sizeof(label), "Out of bounds write attempt");
 
+  va_end(label_args);
+
+  pthread_mutex_lock(&g_lock);
+
+  struct loginfo info = {
+    .counter = ++g_counter,
+    .tstamp_ms = cee_timestamp_ms()
+  };
+
+  pthread_mutex_unlock(&g_lock);
+
   char timestr[64];
+  cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &info.tstamp_ms);
+
   fprintf(config->http.f, 
-    "%s [%s #TID%u] - %s - %s\n%.*s%s%.*s\n@@@ END @@@\n",
+    "%s [%s #TID%u] - %s - %s\n%.*s%s%.*s\n@@@_%zu_@@@\n",
     label,
     logconf_tag(config, addr_id), 
     (unsigned)pthread_self(),
-    cee_timestamp_str(timestr, sizeof(timestr)), 
+    timestr,
     url,
     (int)header.size, header.start,
     header.size ? "\n" : "",
-    (int)body.size, body.start);
+    (int)body.size, body.start,
+    info.counter);
   fflush(config->http.f);
 
-  va_end(args);
+  if (p_info) *p_info = info;
 }
 
 void
 logconf_setup(struct logconf *config, const char config_file[])
 {
   ASSERT_S(NULL != config, "Missing 'struct logconf'");
-
-  static bool first_run = true; // delete existent dump files if overwrite == true
 
   if (IS_EMPTY_STRING(config_file)) {
     config->http.f = stderr;
@@ -141,13 +157,12 @@ logconf_setup(struct logconf *config, const char config_file[])
   struct {
     char level[16];
     char filename[PATH_MAX];
-    bool quiet;
-    bool overwrite;
+    bool quiet, use_color, overwrite;
     struct {
       bool enable;
       char filename[PATH_MAX];
     } http;
-  } logging = { .quiet = 0 }; // set all as zero
+  } logging={0}; // set all as zero
 
 
   if (config->contents) {
@@ -167,19 +182,19 @@ logconf_setup(struct logconf *config, const char config_file[])
              logging.level,
              logging.filename,
              &logging.quiet,
-             &use_color,
+             &logging.use_color,
              &logging.overwrite,
              &logging.http.enable,
              logging.http.filename);
 
   /* SET LOGGER CONFIGS */
   if (!IS_EMPTY_STRING(logging.filename)) {
-    if (first_run && logging.overwrite)
+    if (g_first_run && logging.overwrite)
       config->logger.f = fopen(logging.filename, "w+");
     else
       config->logger.f = fopen(logging.filename, "a+");
     log_add_callback(
-        use_color ? &log_color_cb : &log_nocolor_cb, 
+        logging.use_color ? &log_color_cb : &log_nocolor_cb, 
         config->logger.f, 
         get_log_level(logging.level));
     ASSERT_S(NULL != config->logger.f, "Could not create logger file");
@@ -187,27 +202,27 @@ logconf_setup(struct logconf *config, const char config_file[])
 
   /* SET HTTP DUMP CONFIGS */
   if (logging.http.enable && !IS_EMPTY_STRING(logging.http.filename)) {
-    if (first_run && logging.overwrite)
+    if (g_first_run && logging.overwrite)
       config->http.f = fopen(logging.http.filename, "w+");
     else
       config->http.f = fopen(logging.http.filename, "a+");
     ASSERT_S(NULL != config->http.f, "Could not create dump file");
   }
 
-  if (first_run) {
+  if (g_first_run) {
     log_set_quiet(true); // disable default log.c callbacks
     if (logging.quiet) // make sure fatal still prints to stderr
       log_add_callback(
-          use_color ? &log_color_cb : &log_nocolor_cb, 
+          logging.use_color ? &log_color_cb : &log_nocolor_cb, 
           stderr, 
           LOG_FATAL);
     else
       log_add_callback(
-          use_color ? &log_color_cb : &log_nocolor_cb, 
+          logging.use_color ? &log_color_cb : &log_nocolor_cb, 
           stderr, 
           get_log_level(logging.level));
 
-    first_run = false;
+    g_first_run = false;
   }
 }
 

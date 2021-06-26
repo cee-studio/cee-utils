@@ -118,11 +118,10 @@ cee_iso8601_to_unix_ms(char *timestamp, size_t len, void *p_data)
 }
 
 int
-cee_unix_ms_to_iso8601(char *str, size_t len, void *p_data)
+cee_unix_ms_to_iso8601(char *str, size_t len, void *p_timestamp)
 {
-  uint64_t *p_timestamp = (uint64_t*)p_data;
-  ASSERT_S(NULL != p_timestamp, "No timestamp provided by user");
-  uint64_t timestamp = *p_timestamp;
+  ASSERT_S(NULL != p_timestamp, "Missing 'p_timestamp'");
+  uint64_t timestamp = *(uint64_t*)p_timestamp;
 
   time_t seconds = timestamp / 1000;
   int millis = timestamp % 1000;

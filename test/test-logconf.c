@@ -48,6 +48,7 @@ int main(void)
   // print to 'logging.filename' (@todo better function name?)
   log_http(
     &conf, 
+    NULL,
     &varA, 
     "TITLE1", 
     (struct sized_buffer){"HEADER1", 7},
@@ -56,6 +57,7 @@ int main(void)
 
   log_http(
     &conf, 
+    NULL,
     &varB, 
     "TITLE2", 
     (struct sized_buffer){"HEADER2", 7},
@@ -64,6 +66,7 @@ int main(void)
 
   log_http(
     &conf, 
+    NULL,
     &varC, 
     "TITLE3", 
     (struct sized_buffer){"HEADER3", 7},
