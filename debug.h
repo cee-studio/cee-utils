@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include "log.h"
 
-#ifdef __stensal__ // for error tracing purposes
-#  define ABORT()    { char * p = 0; * p = 0; }
+#ifdef __saiph__ // for error tracing purposes
+#  define ABORT()    { extern __dts_in__crash_simple(int, char*); __dts_in__crash_simple(0, "abort"); }
 #else
 #  define ABORT()    abort()
 #endif
