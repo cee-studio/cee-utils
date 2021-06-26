@@ -112,7 +112,7 @@ log_http(
 
   char timestr[64];
   fprintf(config->http.f, 
-    "%s [%s #TID%u] - %s - %s\n%.*s%s%.*s\n",
+    "%s [%s #TID%u] - %s - %s\n%.*s%s%.*s\n@@@ END @@@\n",
     label,
     logconf_tag(config, addr_id), 
     (unsigned)pthread_self(),
@@ -121,8 +121,6 @@ log_http(
     (int)header.size, header.start,
     header.size ? "\n" : "",
     (int)body.size, body.start);
-  fputs("\r\r\r\r\n", config->http.f);
-
   fflush(config->http.f);
 
   va_end(args);
