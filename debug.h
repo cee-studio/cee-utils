@@ -5,7 +5,7 @@
 #include "log.h"
 
 #ifdef __saiph__ // for error tracing purposes
-#  define ABORT()    { extern __dts_in__crash_simple(int, char*); __dts_in__crash_simple(0, "abort"); }
+#  define ABORT()    { extern void __dts_in__crash_simple(int, char*); __dts_in__crash_simple(0, "abort"); }
 #else
 #  define ABORT()    abort()
 #endif
