@@ -2433,7 +2433,7 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   jsmntok_t * tokens = NULL;
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   DS_PRINT("# of tokens = %d", num_tok);
-  VASSERT_S(num_tok >= 0, "Failed to parse JSON: %.*s, returned token number: %d", \
+  VASSERT_S(num_tok > 0, "Failed to parse JSON: %.*s, returned token number: %d", \
       (int)size, json, num_tok);
 
   tokens = malloc(sizeof(jsmntok_t) * num_tok);
