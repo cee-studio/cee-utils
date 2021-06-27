@@ -38,6 +38,10 @@ cee_load_whole_file(const char filename[], size_t *len)
     *len = f_size;
   }
 
+  if (!len) {
+    fprintf(stderr, "%s is empty\n", filename);
+    ABORT();
+  }
   return string;
 }
 
