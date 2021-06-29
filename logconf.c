@@ -104,6 +104,10 @@ log_http(
   struct sized_buffer body,
   char label_fmt[], ...)
 {
+  pthread_mutex_lock(&g_lock);
+  size_t counter = ++g_counter;
+  pthread_mutex_unlock(&g_lock);
+
   if (!config) return;
 
   char label[512];
@@ -116,14 +120,10 @@ log_http(
 
   va_end(label_args);
 
-  pthread_mutex_lock(&g_lock);
-
   struct loginfo info = {
-    .counter = ++g_counter,
+    .counter = counter,
     .tstamp_ms = cee_timestamp_ms()
   };
-
-  pthread_mutex_unlock(&g_lock);
 
   char timestr[64];
   cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &info.tstamp_ms);
