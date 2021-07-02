@@ -315,7 +315,7 @@ static void
 print_field(FILE *fp, struct jc_field *p)
 {
   if (p->todo)
-    fprintf(fp, "///< @todo name: %s\n", p->name);
+    fprintf(fp, "// @todo name: %s\n", p->name);
   else {
     fprintf(fp, "name:%s, ", p->name);
     if (p->json_key)
@@ -736,7 +736,7 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
     char *item_name = ns_to_item_name(item->name);
 
     if (item->todo) {
-      fprintf(fp, "///< @todo %s %s\n", item_name, item->comment);
+      fprintf(fp, "// @todo %s %s\n", item_name, item->comment);
     }
     else {
       fprintf(fp, "  %s", item_name);
@@ -1300,7 +1300,7 @@ static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
 
   if (act.todo)
-    fprintf(fp, "  ///< @todo p->%s\n", act.c_name);
+    fprintf(fp, "  // @todo p->%s\n", act.c_name);
   else if (act.free)
     fprintf(fp,
             "  if (d->%s)\n"
@@ -1327,10 +1327,10 @@ static void emit_field(void *cxt, FILE *fp, struct jc_field *f)
   struct action act = {0};
   to_action(f, &act);
   if (act.todo) {
-    fprintf(fp, "  ///< @todo %s %s;\n", f->name, f->comment);
+    fprintf(fp, "  // @todo %s %s;\n", f->name, f->comment);
   }
   else if (f->comment)
-    fprintf(fp, "  %s %s%s%s; // %s\n",
+    fprintf(fp, "  %s %s%s%s; ///< %s\n",
             act.c_type, act.pre_dec, act.c_name, act.post_dec, f->comment);
   else
     fprintf(fp, "  %s %s%s%s;\n",
