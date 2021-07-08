@@ -1663,9 +1663,7 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   }
   fputs(" */\n", fp);
 
-  if (t_alias)
-    fprintf(fp, "typedef ");
-  fprintf(fp, "struct %s {\n", t);
+  fprintf(fp, "typedef struct %s {\n", t);
 
   int i=0;
   for ( ; s->fields && s->fields[i]; i++) {
@@ -1691,7 +1689,7 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   if (t_alias)
     fprintf(fp, "} %s;\n", t_alias);
   else  
-    fprintf(fp, "};\n");
+    fprintf(fp, "} %s_t;\n", t);
 }
 
 static void gen_wrapper(FILE *fp, struct jc_struct *s)
