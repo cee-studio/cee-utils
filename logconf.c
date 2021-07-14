@@ -5,7 +5,7 @@
 #include <strings.h> /* strcasecmp() */
 #include <stdarg.h>
 #include <pthread.h> /* pthread_self() */
-#include <limits.h> /* PATH_MAX */
+#include <unistd.h> /* getpid() */
 
 #include "logconf.h"
 
@@ -24,8 +24,8 @@ get_log_level(char level[])
 {
   if (0 == strcasecmp(level, "TRACE")) return LOG_TRACE;
   if (0 == strcasecmp(level, "DEBUG")) return LOG_DEBUG;
-  if (0 == strcasecmp(level, "INFO")) return LOG_INFO;
-  if (0 == strcasecmp(level, "WARN")) return LOG_WARN;
+  if (0 == strcasecmp(level, "INFO"))  return LOG_INFO;
+  if (0 == strcasecmp(level, "WARN"))  return LOG_WARN;
   if (0 == strcasecmp(level, "ERROR")) return LOG_ERROR;
   if (0 == strcasecmp(level, "FATAL")) return LOG_FATAL;
   ERR("Log level doesn't exist: %s", level);
@@ -38,20 +38,20 @@ logconf_add_id(struct logconf *config, void *addr, const char tag[])
   if (!config || !addr || IS_EMPTY_STRING(tag)) 
     return; /* EARLY RETURN */
 
-  for (size_t i=0; i < MAX_LOGCONF_IDS; ++i) {
+  for (size_t i=0; i < LOGCONF_MAX_IDS; ++i) {
     if ( (NULL == config->ids[i].addr) || (addr == config->ids[i].addr) ) {
       config->ids[i].addr = addr;
       snprintf(config->ids[i].tag, sizeof(config->ids[i].tag), "%s", tag);
       return; /* EARLY RETURN */
     }
   }
-  ERR("Reach maximum logconf_ids threshold (%d)", MAX_LOGCONF_IDS);
+  ERR("Reach maximum logconf_ids threshold (%d)", LOGCONF_MAX_IDS);
 }
 
 char*
 logconf_tag(struct logconf *config, void *addr)
 {
-  for (size_t i=0; i < MAX_LOGCONF_IDS; ++i) {
+  for (size_t i=0; i < LOGCONF_MAX_IDS; ++i) {
     if (addr == config->ids[i].addr) {
       return config->ids[i].tag;
     }
@@ -149,8 +149,6 @@ log_http(
 void
 logconf_setup(struct logconf *config, const char config_file[])
 {
-  ASSERT_S(NULL != config, "Missing 'struct logconf'");
-
   if (IS_EMPTY_STRING(config_file)) {
     config->http.f = stderr;
     return; /* EARLY RETURN */
@@ -158,14 +156,9 @@ logconf_setup(struct logconf *config, const char config_file[])
 
   struct {
     char level[16];
-    char filename[PATH_MAX];
     bool quiet, use_color, overwrite;
-    struct {
-      bool enable;
-      char filename[PATH_MAX];
-    } http;
+    bool http_enable;
   } logging={0}; // set all as zero
-
 
   if (config->contents) {
     free(config->contents);
@@ -174,52 +167,39 @@ logconf_setup(struct logconf *config, const char config_file[])
 
   config->contents = cee_load_whole_file(config_file, &config->len);
   json_extract(config->contents, config->len,
-             "(logging.level):s"
-             "(logging.filename):s"
+             "(logging.level):.*s"
+             "(logging.filename):.*s"
              "(logging.quiet):b"
              "(logging.use_color):b"
              "(logging.overwrite):b"
-             "(logging.http_dump.enable):b"
-             "(logging.http_dump.filename):s",
-             logging.level,
-             logging.filename,
+             "(logging.http.enable):b"
+             "(logging.http.filename):.*s",
+             sizeof(logging.level), logging.level,
+             sizeof(config->logger.fname), config->logger.fname,
              &logging.quiet,
              &logging.use_color,
              &logging.overwrite,
-             &logging.http.enable,
-             logging.http.filename);
+             &logging.http_enable,
+             sizeof(config->http.fname), config->http.fname);
 
   // child processes must be written to a different file
   pid_t pid = getpid();
-  if (!g_first_run && pid != g_main_pid) 
-  {
-    char filename_ext[128];
-    char aux[PATH_MAX]={0};
+  if (!g_first_run && pid != g_main_pid) {
+    size_t len;
 
-    snprintf(filename_ext, sizeof(filename_ext), ".%ld", (long)pid);
+    len = strlen(config->logger.fname);
+    snprintf(config->logger.fname + len, sizeof(config->logger.fname) - len, "%ld", (long)pid);
 
-    char *ext_start;
-    if (NULL == (ext_start = strchr(logging.filename, '.')))
-      ext_start = "";
-
-    snprintf(aux, PATH_MAX, "%.*s%s%s", \
-        (int)(ext_start - logging.filename), logging.filename, filename_ext, ext_start);
-    memcpy(logging.filename, aux, PATH_MAX);
-
-    if (NULL == (ext_start = strchr(logging.http.filename, '.')))
-      ext_start = "";
-
-    snprintf(aux, PATH_MAX, "%.*s%s%s", \
-        (int)(ext_start - logging.http.filename), logging.http.filename, filename_ext, ext_start);
-    memcpy(logging.http.filename, aux, PATH_MAX);
+    len = strlen(config->http.fname);
+    snprintf(config->http.fname + len, sizeof(config->http.fname) - len, "%ld", (long)pid);
   }
 
   /* SET LOGGER CONFIGS */
-  if (!IS_EMPTY_STRING(logging.filename)) {
+  if (!IS_EMPTY_STRING(config->logger.fname)) {
     if (g_first_run && logging.overwrite)
-      config->logger.f = fopen(logging.filename, "w+");
+      config->logger.f = fopen(config->logger.fname, "w+");
     else
-      config->logger.f = fopen(logging.filename, "a+");
+      config->logger.f = fopen(config->logger.fname, "a+");
     log_add_callback(
         logging.use_color ? &log_color_cb : &log_nocolor_cb, 
         config->logger.f, 
@@ -228,15 +208,16 @@ logconf_setup(struct logconf *config, const char config_file[])
   }
 
   /* SET HTTP DUMP CONFIGS */
-  if (logging.http.enable && !IS_EMPTY_STRING(logging.http.filename)) {
+  if (logging.http_enable && !IS_EMPTY_STRING(config->http.fname)) {
     if (g_first_run && logging.overwrite)
-      config->http.f = fopen(logging.http.filename, "w+");
+      config->http.f = fopen(config->http.fname, "w+");
     else
-      config->http.f = fopen(logging.http.filename, "a+");
+      config->http.f = fopen(config->http.fname, "a+");
     ASSERT_S(NULL != config->http.f, "Could not create dump file");
   }
 
   if (g_first_run) {
+    g_first_run = false;
     g_main_pid = getpid();
 
     log_set_quiet(true); // disable default log.c callbacks
@@ -250,8 +231,6 @@ logconf_setup(struct logconf *config, const char config_file[])
           logging.use_color ? &log_color_cb : &log_nocolor_cb, 
           stderr, 
           get_log_level(logging.level));
-
-    g_first_run = false;
   }
 }
 

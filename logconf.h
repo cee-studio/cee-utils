@@ -6,21 +6,23 @@ extern "C" {
 #endif // __cplusplus
 
 #include <stdint.h> /* uint64_t */
+#include <limits.h> /* PATH_MAX */
 #include "ntl.h"    /* struct sized_buffer */
 #include "debug.h"
 
-#define MAX_LOGCONF_IDS 32
+#define LOGCONF_MAX_IDS 32
 
 struct logconf {
   struct {
     void *addr;
     char tag[32];
-  } ids[MAX_LOGCONF_IDS];
+  } ids[LOGCONF_MAX_IDS];
 
   char *contents; // config file contents
   size_t len; // config file len
 
   struct { /* the 'bot.log' and 'dump.json' file */
+    char fname[PATH_MAX];
     FILE *f;
   } logger, http;
 };
