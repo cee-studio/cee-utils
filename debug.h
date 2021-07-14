@@ -97,7 +97,7 @@
 #  define D_NOTOP_PRINT(...) NOTOP_PRINT(__VA_ARGS__)
 #  define D_ERR(...) ERR(__VA_ARGS__)
 #  define D_ASSERT_S(expr, msg) ASSERT_S(expr, msg)
-#  define D_ONLY(arg) (arg)
+#  define D_RUN(arg) (arg)
 
 #else /* DEBUG MODE INNACTIVE */
 
@@ -107,7 +107,7 @@
 #  define D_NOTOP_PRINT(...)
 #  define D_ERR(...)
 #  define D_ASSERT_S(expr, msg)
-#  define D_ONLY(arg)
+#  define D_RUN(arg)
 
 #endif
 
@@ -122,7 +122,7 @@
 #  define DS_NOTOP_PRINT(...) NOTOP_PRINT(__VA_ARGS__)
 #  define DS_ERR(...) ERR(__VA_ARGS__)
 #  define DS_ASSERT_S(expr, msg) ASSERT_S(expr, msg)
-#  define DS_ONLY(arg) (arg)
+#  define DS_RUN(arg) (arg)
 
 #else
 
@@ -132,7 +132,7 @@
 #  define DS_NOTOP_PRINT(...)
 #  define DS_ERR(...)
 #  define DS_ASSERT_S(expr, msg)
-#  define DS_ONLY(arg)
+#  define DS_RUN(arg)
 
 #endif
 
