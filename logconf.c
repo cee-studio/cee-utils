@@ -16,6 +16,8 @@
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static size_t g_counter;
 static bool g_first_run = true;
+static pid_t g_main_pid; // initialized at logconf_setup()
+
 
 static int
 get_log_level(char level[])
@@ -187,6 +189,31 @@ logconf_setup(struct logconf *config, const char config_file[])
              &logging.http.enable,
              logging.http.filename);
 
+  // child processes must be written to a different file
+  pid_t pid = getpid();
+  if (!g_first_run && pid != g_main_pid) 
+  {
+    char filename_ext[128];
+    char aux[PATH_MAX]={0};
+
+    snprintf(filename_ext, sizeof(filename_ext), ".%ld", (long)pid);
+
+    char *ext_start;
+    if (NULL == (ext_start = strchr(logging.filename, '.')))
+      ext_start = "";
+
+    snprintf(aux, PATH_MAX, "%.*s%s%s", \
+        (int)(ext_start - logging.filename), logging.filename, filename_ext, ext_start);
+    memcpy(logging.filename, aux, PATH_MAX);
+
+    if (NULL == (ext_start = strchr(logging.http.filename, '.')))
+      ext_start = "";
+
+    snprintf(aux, PATH_MAX, "%.*s%s%s", \
+        (int)(ext_start - logging.http.filename), logging.http.filename, filename_ext, ext_start);
+    memcpy(logging.http.filename, aux, PATH_MAX);
+  }
+
   /* SET LOGGER CONFIGS */
   if (!IS_EMPTY_STRING(logging.filename)) {
     if (g_first_run && logging.overwrite)
@@ -210,6 +237,8 @@ logconf_setup(struct logconf *config, const char config_file[])
   }
 
   if (g_first_run) {
+    g_main_pid = getpid();
+
     log_set_quiet(true); // disable default log.c callbacks
     if (logging.quiet) // make sure fatal still prints to stderr
       log_add_callback(
