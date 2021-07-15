@@ -172,8 +172,8 @@ logconf_setup(struct logconf *config, const char config_file[])
              "(logging.quiet):b"
              "(logging.use_color):b"
              "(logging.overwrite):b"
-             "(logging.http.enable):b"
-             "(logging.http.filename):.*s",
+             "(logging.http_dump.enable):b"
+             "(logging.http_dump.filename):.*s",
              sizeof(logging.level), logging.level,
              sizeof(config->logger.fname), config->logger.fname,
              &logging.quiet,
