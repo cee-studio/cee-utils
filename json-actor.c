@@ -2462,14 +2462,14 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   jsmn_init(&parser);
   jsmntok_t * tokens = NULL;
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
-  JSMN_CHECK(num_token);
+  JSMN_CHECK(num_tok);
   DS_PRINT("# of tokens = %d", num_tok);
 
   tokens = malloc(sizeof(jsmntok_t) * num_tok);
 
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
-  JSMN_CHECK(num_token);
+  JSMN_CHECK(num_tok);
 
   /* Assume the top-level element is an object */
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
@@ -2725,12 +2725,12 @@ json_to_sized_buffer_ntl
   jsmntok_t * tokens = NULL;
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   DS_PRINT("# of tokens = %d", num_tok);
-  JSMN_CHECK(num_token);
+  JSMN_CHECK(num_tok);
 
   tokens = malloc(sizeof(jsmntok_t) * num_tok);
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
-  JSMN_CHECK(num_token);
+  JSMN_CHECK(num_tok);
 
   /* Assume the top-level element is an object */
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
