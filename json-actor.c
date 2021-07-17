@@ -67,6 +67,36 @@
 #include "json-actor.h"
 
 
+static const char*
+jsmn_code_print(int code)
+{
+  switch (code) {
+  CASE_RETURN_STR(JSMN_ERROR_INV);
+  CASE_RETURN_STR(JSMN_ERROR_NOMEM);
+  CASE_RETURN_STR(JSMN_ERROR_PART);
+  default: return NULL;
+  }
+}
+
+static const char*
+jsmn_strerror(int code)
+{
+  switch (code) {
+  case JSMN_ERROR_INV:
+      return "Bad token, JSON string is corrupted";
+  case JSMN_ERROR_INV:
+      return "Not enough tokens, JSON string is too large";
+  case JSMN_ERROR_INV:
+      return "JSON string is too short, expecting more JSON data";
+  default: return "Unknown JSMN error";
+  }
+}
+
+#define JSMN_CHECK(code)                               \
+  VASSERT_S(code > 0, "%s (code: %d) %s",              \
+      jsmn_code_print(code), code, jsmn_strerror(code))
+
+
 static int strong_type = 1;
 void json_actor_strong_type(int b)
 {
@@ -2432,15 +2462,14 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   jsmn_init(&parser);
   jsmntok_t * tokens = NULL;
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
+  JSMN_CHECK(num_token);
   DS_PRINT("# of tokens = %d", num_tok);
-  VASSERT_S(num_tok > 0, "Failed to parse JSON: %.*s, returned token number: %d", \
-      (int)size, json, num_tok);
 
   tokens = malloc(sizeof(jsmntok_t) * num_tok);
 
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
-  VASSERT_S(num_tok >= 0, "Invalid JSON %.*s", (int)size, json);
+  JSMN_CHECK(num_token);
 
   /* Assume the top-level element is an object */
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
@@ -2696,16 +2725,12 @@ json_to_sized_buffer_ntl
   jsmntok_t * tokens = NULL;
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   DS_PRINT("# of tokens = %d", num_tok);
-  if (num_tok < 0)
-    ERR("Failed to parse JSON: %.*s, returned token number: %d",
-        (int)size, json, num_tok);
+  JSMN_CHECK(num_token);
 
   tokens = malloc(sizeof(jsmntok_t) * num_tok);
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
-
-  if (num_tok < 0)
-    ERR("Invalid JSON %.*s", (int)size, json);
+  JSMN_CHECK(num_token);
 
   /* Assume the top-level element is an object */
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
