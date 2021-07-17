@@ -71,9 +71,9 @@ static const char*
 jsmn_code_print(int code)
 {
   switch (code) {
-  CASE_RETURN_STR(JSMN_ERROR_INV);
-  CASE_RETURN_STR(JSMN_ERROR_NOMEM);
-  CASE_RETURN_STR(JSMN_ERROR_PART);
+  case JSMN_ERROR_INVAL: return "JSMN_ERROR_INVAL";
+  case JSMN_ERROR_NOMEM: return "JSMN_ERROR_NOMEM";
+  case JSMN_ERROR_PART: return "JSMN_ERROR_PART";
   default: return NULL;
   }
 }
@@ -82,11 +82,11 @@ static const char*
 jsmn_strerror(int code)
 {
   switch (code) {
-  case JSMN_ERROR_INV:
+  case JSMN_ERROR_INVAL:
       return "Bad token, JSON string is corrupted";
-  case JSMN_ERROR_INV:
+  case JSMN_ERROR_NOMEM:
       return "Not enough tokens, JSON string is too large";
-  case JSMN_ERROR_INV:
+  case JSMN_ERROR_PART:
       return "JSON string is too short, expecting more JSON data";
   default: return "Unknown JSMN error";
   }
