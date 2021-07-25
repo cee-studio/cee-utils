@@ -110,7 +110,8 @@ log_http(
   size_t counter = ++g_counter;
   pthread_mutex_unlock(&g_lock);
 
-  if (!config || !config.http.f) return;
+  if (!config || !config->http.f) 
+    return;
 
   char label[512];
 
