@@ -110,7 +110,7 @@ log_http(
   size_t counter = ++g_counter;
   pthread_mutex_unlock(&g_lock);
 
-  if (!config) return;
+  if (!config || !config.http.f) return;
 
   char label[512];
 
@@ -150,7 +150,7 @@ void
 logconf_setup(struct logconf *config, const char config_file[])
 {
   if (IS_EMPTY_STRING(config_file)) {
-    config->http.f = stderr;
+    config->http.f = NULL;
     return; /* EARLY RETURN */
   }
 
