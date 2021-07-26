@@ -26,10 +26,15 @@ LDFLAGS += -lm
 
 .PHONY : all test clean
 
+all : test
+test : $(OBJS) $(TEST_EXES)
+
+$(TEST_EXES): $(OBJS) | $(OBJDIR)
+$(OBJS): | $(OBJDIR)
+
 # generic compilation
 $(OBJDIR)/%.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
-	
 test/test-json-actor.exe : test/test-json-actor.c
 	$(CC) $< $(filter-out $(OBJDIR)/json-actor.o, $(OBJS)) \
 		$(CFLAGS) -o $@ $(LDFLAGS)
@@ -37,18 +42,11 @@ test/test-json-actor.exe : test/test-json-actor.c
 test/test-%.exe : test/test-%.c
 	$(CC) $< $(OBJS) $(CFLAGS) -o $@ $(LDFLAGS)
 
-all : test
-
 echo :
 	@echo SRC $(SRC)
 	@echo OBJS $(OBJS)
 	@echo TEST_SRC $(TEST_SRC)
 	@echo TEST_EXES $(TEST_EXES)
-
-test : $(TEST_EXES)
-
-$(TEST_EXES) : $(TEST_EXES) | $(OBJS)
-$(OBJS): | $(OBJDIR)
 
 $(OBJDIR) :
 	mkdir -p $(OBJDIR)/test
