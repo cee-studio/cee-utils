@@ -156,11 +156,8 @@ addr_to_lnc (char *json, size_t size, char *addr, struct line_and_column *ln);
 
 void json_actor_strong_type(int b);
 
-extern size_t
-extract_ntl_from_json(
-  char *buf,
-  size_t len,
-  struct ntl_deserializer *ntl_deserializer);
+extern size_t extract_ntl_from_json(char *buf, size_t len, struct ntl_deserializer *ntl_deserializer);
+extern size_t extract_ntl_from_json2(char *buf, size_t len, struct ntl_deserializer *ntl_deserializer);
 
 extern int
 json_to_sized_buffer_ntl

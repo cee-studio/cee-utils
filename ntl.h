@@ -195,6 +195,7 @@ struct ntl_deserializer {
  *    from a sized buffer
  */
 size_t ntl_from_buf(char *buf, size_t len, struct ntl_deserializer *ntl_deserializer);
+size_t ntl_from_buf2(char *buf, size_t len, struct ntl_deserializer *ntl_deserializer);
 
 int ntl_is_a_member(ntl_t p , void *addr);
 

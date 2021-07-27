@@ -373,6 +373,29 @@ STATIC size_t ntl_from_buf(char *buf, size_t len, struct ntl_deserializer *deser
   return n_elems;
 }
 
+STATIC size_t ntl_from_buf2(char *buf, size_t len, struct ntl_deserializer *deserializer)
+{
+  struct sized_buffer **elem_bufs = NULL;
+  int ret = (*deserializer->partition_as_sized_bufs)(buf, len, &elem_bufs);
+  if (0 == ret) {
+    *deserializer->ntl_recipient_p = NULL;
+    return 0;
+  }
+
+  size_t n_elems = ntl_length((void **)elem_bufs);
+  ntl_t new_ntl =
+    ntl_calloc_init(n_elems, deserializer->elem_size, deserializer->init_elem);
+
+  for (size_t i=0; elem_bufs[i]; ++i)
+    (*deserializer->elem_from_buf)(
+      elem_bufs[i]->start,
+      elem_bufs[i]->size,
+      new_ntl+i);
+
+  free(elem_bufs);
+  *(deserializer->ntl_recipient_p) = new_ntl;
+  return n_elems;
+}
 
 STATIC int ntl_is_a_member(ntl_t p, void *addr)
 {

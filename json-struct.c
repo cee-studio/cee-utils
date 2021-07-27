@@ -1178,7 +1178,7 @@ static void to_action(struct jc_field *f, struct action *act)
             asprintf(&act->extractor, "%s_from_json", act->fun_prefix);
             asprintf(&act->alloc, "%s_alloc", act->fun_prefix);
             asprintf(&act->free, "%s_free", act->fun_prefix);
-            act->extract_arg_decor = "";
+            act->extract_arg_decor = "&";
             act->inject_arg_decor = "";
             act->post_dec = "";
             act->pre_dec = "*";
@@ -1280,10 +1280,10 @@ static void gen_default(FILE *fp, struct jc_struct *s)
   fprintf(fp, "  struct ntl_deserializer d;\n");
   fprintf(fp, "  memset(&d, 0, sizeof(d));\n");
   fprintf(fp, "  d.elem_size = sizeof(struct %s);\n", type);
-  fprintf(fp, "  d.init_elem = %s_init_v;\n", type);
+  fprintf(fp, "  d.init_elem = NULL;\n");
   fprintf(fp, "  d.elem_from_buf = %s_from_json_v;\n", type);
   fprintf(fp, "  d.ntl_recipient_p= (void***)p;\n");
-  fprintf(fp, "  extract_ntl_from_json(str, len, &d);\n");
+  fprintf(fp, "  extract_ntl_from_json2(str, len, &d);\n");
   fprintf(fp, "}\n\n");
 
   fprintf(fp, "size_t %s_list_to_json(char *str, size_t len, struct %s **p)\n",
@@ -1395,12 +1395,14 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
             s->disable_methods_lnc.line,
             s->disable_methods_lnc.column);
   }
-  fprintf(fp, "void %s_from_json%s(char *json, size_t len, struct %s *p)\n",
+  fprintf(fp, "void %s_from_json%s(char *json, size_t len, struct %s **pp)\n",
           t, suffix, t);
 
   fprintf(fp, "{\n");
   fprintf(fp, "  static size_t ret=0; // used for debugging\n");
   fprintf(fp, "  size_t r=0;\n");
+  fprintf(fp, "  if (!*pp) *pp = calloc(1, sizeof **pp);\n");
+  fprintf(fp, "  struct %s *p = *pp;\n", t);
   fprintf(fp, "  r=json_extract(json, len, \n");
   for (int i = 0; s->fields && s->fields[i]; i++) {
     if (emit_spec)
@@ -1711,8 +1713,8 @@ static void gen_wrapper(FILE *fp, struct jc_struct *s)
               " %s_free((struct %s *)p);\n"
               "};\n\n", t, t, t);
 
-  fprintf(fp, "void %s_from_json_v(char *json, size_t len, void *p) {\n"
-              " %s_from_json(json, len, (struct %s*)p);\n"
+  fprintf(fp, "void %s_from_json_v(char *json, size_t len, void *pp) {\n"
+              " %s_from_json(json, len, (struct %s**)pp);\n"
               "}\n\n", t, t, t);
 
   fprintf(fp, "size_t %s_to_json_v(char *json, size_t len, void *p) {\n"
@@ -1753,8 +1755,8 @@ static void gen_forward_fun_declare(FILE *fp, struct jc_struct *s)
   fprintf(fp, "extern void %s_free_v(void *p);\n", t);
   fprintf(fp, "extern void %s_free(struct %s *p);\n", t, t);
 
-  fprintf(fp, "extern void %s_from_json_v(char *json, size_t len, void *p);\n", t);
-  fprintf(fp, "extern void %s_from_json(char *json, size_t len, struct %s *p);\n",
+  fprintf(fp, "extern void %s_from_json_v(char *json, size_t len, void *pp);\n", t);
+  fprintf(fp, "extern void %s_from_json(char *json, size_t len, struct %s **pp);\n",
           t, t);
 
   fprintf(fp, "extern size_t %s_to_json_v(char *json, size_t len, void *p);\n", t);
@@ -1908,7 +1910,8 @@ gen_def(FILE *fp, struct jc_def *def)
 static void
 gen_definition(char *fname, char *openmode, struct emit_option * option, struct jc_definition *d)
 {
-  FILE *fp = (fname)? fopen(fname, openmode) : stderr;
+  FILE *fp = (fname) ? fopen(fname, openmode) : stderr;
+  VASSERT_S(fp != NULL, "Expected file '%s', but it doesn't exist", fname);
 
   init_emit_option(option);
   if (d->is_disabled) return;
@@ -1921,24 +1924,15 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
       d->spec_name);
   }
 
-  char timebuf[256];
-
-  time_t t = time(NULL);
-  struct tm buf;
-  struct tm *tm = localtime_r(&t, &buf);
-  strftime(timebuf, sizeof(timebuf), "%d %b %Y", tm);
-
   fprintf(fp, 
       "/**\n"
       " * @file %s\n"
       " * @author cee-studio\n"
-      " * @date %s\n"
+      " * @date "__DATE__"\n"
       " * @brief Specs generated file\n"
       " * @see %s\n"
       " */\n\n",
-      fname,
-      timebuf,
-      d->comment);
+      fname, d->comment);
 
   if (global_option.type == FILE_SINGLE_FILE || global_option.type == FILE_CODE)
     fprintf(fp, "#include \"specs.h\"\n");
