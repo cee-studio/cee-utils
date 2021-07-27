@@ -2766,3 +2766,13 @@ extract_ntl_from_json(
   ntl_deserializer->partition_as_sized_bufs = json_to_sized_buffer_ntl;
   return ntl_from_buf(buf, len, ntl_deserializer);
 }
+
+size_t
+extract_ntl_from_json2(
+  char *buf,
+  size_t len,
+  struct ntl_deserializer *ntl_deserializer)
+{
+  ntl_deserializer->partition_as_sized_bufs = json_to_sized_buffer_ntl;
+  return ntl_from_buf2(buf, len, ntl_deserializer);
+}
