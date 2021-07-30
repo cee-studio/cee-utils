@@ -992,8 +992,8 @@ struct action {
   char *inject_arg_decor;
   char *extractor;
   char *injector;
-  char *free;
   char *alloc;
+  char *free;
   bool is_user_def;
   bool is_actor_alloc;
   bool need_double_quotes;
@@ -1176,8 +1176,8 @@ static void to_action(struct jc_field *f, struct action *act)
           if (is_user_defined_type) {
             asprintf(&act->injector, "%s_to_json", act->fun_prefix);
             asprintf(&act->extractor, "%s_from_json", act->fun_prefix);
-            asprintf(&act->alloc, "%s_alloc", act->fun_prefix);
-            asprintf(&act->free, "%s_free", act->fun_prefix);
+            asprintf(&act->alloc, "%s_init", act->fun_prefix);
+            asprintf(&act->free, "%s_cleanup", act->fun_prefix);
             act->extract_arg_decor = "&";
             act->inject_arg_decor = "";
             act->post_dec = "";
@@ -1202,7 +1202,6 @@ static void to_action(struct jc_field *f, struct action *act)
       act->is_user_def = true;
       act->is_actor_alloc = true;
       if (to_builtin_action(f, act)) {
-        act->free = "free";
         asprintf(&act->extractor, "%s_list_from_json", act->fun_prefix);
         asprintf(&act->injector, "%s_list_to_json", act->fun_prefix);
       } else {
@@ -1236,7 +1235,9 @@ static void emit_field_init(void *cxt, FILE *fp, struct jc_field *f)
   if (act.todo) return;
 
   if (act.alloc && !f->lazy_init)
-    fprintf (fp, "  p->%s = %s();\n", act.c_name, act.alloc);
+    fprintf (fp, "  p->%s = malloc(sizeof *p->%s);\n"
+                 "  %s(p->%s);\n", 
+                 act.c_name, act.c_name, act.alloc, act.c_name);
 }
 
 static void gen_init (FILE *fp, struct jc_struct *s)
@@ -1259,17 +1260,6 @@ static void gen_default(FILE *fp, struct jc_struct *s)
   char * type = ns_to_symbol_name(s->name);
 
   gen_init(fp, s);
-  fprintf(fp, "struct %s* %s_alloc() {\n", type, type);
-  fprintf(fp, "  struct %s *p= malloc(sizeof(struct %s));\n", type, type);
-  fprintf(fp, "  %s_init(p);\n", type);
-  fprintf(fp, "  return p;\n");
-  fprintf(fp, "}\n\n");
-
-  fprintf(fp, "void %s_free(struct %s *p) {\n", type, type);
-  fprintf(fp, "  %s_cleanup(p);\n", type);
-  fprintf(fp, "  free(p);\n");
-  fprintf(fp, "}\n\n");
-
   fprintf(fp, "void %s_list_free(struct %s **p) {\n", type, type);
   fprintf(fp, "  ntl_free((void**)p, (vfvp)%s_cleanup);\n", type);
   fprintf(fp, "}\n\n");
@@ -1301,11 +1291,18 @@ static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
 
   if (act.todo)
     fprintf(fp, "  // @todo p->%s\n", act.c_name);
-  else if (act.free)
-    fprintf(fp,
-            "  if (d->%s)\n"
-            "    %s(d->%s);\n",
-            act.c_name, act.free, act.c_name);
+  else if (act.free) {
+    if (strstr(act.free, "_cleanup"))
+      fprintf(fp, "  if (d->%s) {\n"
+                  "    %s(d->%s);\n"
+                  "    free(d->%s);\n"
+                  "  }\n",
+                  act.c_name, act.free, act.c_name, act.c_name);
+    else
+      fprintf(fp, "  if (d->%s)\n"
+                  "    %s(d->%s);\n",
+                  act.c_name, act.free, act.c_name);
+  } 
   else
     fprintf(fp, "  // p->%s is a scalar\n", act.c_name);
 }
@@ -1709,10 +1706,6 @@ static void gen_wrapper(FILE *fp, struct jc_struct *s)
               "}\n\n", t, t, t);
 
 
-  fprintf(fp, "void %s_free_v(void *p) {\n"
-              " %s_free((struct %s *)p);\n"
-              "};\n\n", t, t, t);
-
   fprintf(fp, "void %s_from_json_v(char *json, size_t len, void *pp) {\n"
               " %s_from_json(json, len, (struct %s**)pp);\n"
               "}\n\n", t, t, t);
@@ -1749,11 +1742,6 @@ static void gen_forward_fun_declare(FILE *fp, struct jc_struct *s)
 
   fprintf(fp, "extern void %s_init_v(void *p);\n", t);
   fprintf(fp, "extern void %s_init(struct %s *p);\n", t, t);
-
-  fprintf(fp, "extern struct %s * %s_alloc();\n", t, t);
-
-  fprintf(fp, "extern void %s_free_v(void *p);\n", t);
-  fprintf(fp, "extern void %s_free(struct %s *p);\n", t, t);
 
   fprintf(fp, "extern void %s_from_json_v(char *json, size_t len, void *pp);\n", t);
   fprintf(fp, "extern void %s_from_json(char *json, size_t len, struct %s **pp);\n",
