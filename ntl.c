@@ -326,8 +326,6 @@ STATIC ntl_t ntl_append(ntl_t p, size_t elem_size, void *added_elem)
     i++;
   }
   memcpy(o[i], added_elem, elem_size);
-  // elem inner-fields are now owned by NTL
-  memset(added_elem, 0, elem_size);
   return o;
 }
 
