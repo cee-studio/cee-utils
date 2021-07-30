@@ -736,7 +736,7 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
     char *item_name = ns_to_item_name(item->name);
 
     if (item->todo) {
-      fprintf(fp, "// @todo %s %s\n", item_name, item->comment);
+      fprintf(fp, "/// @todo %s %s\n", item_name, item->comment);
     }
     else {
       fprintf(fp, "  %s", item_name);
@@ -1651,14 +1651,24 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   if (s->typedef_name)
     t_alias = ns_to_symbol_name(s->typedef_name);
 
+  if (s->title)
+    fprintf(fp, "// %s\n", s->title);
+  fprintf(fp, "// defined at %s:%d:%d\n",
+          spec_name, s->name_lnc.line, s->name_lnc.column);
   fputs("/**\n", fp);
   {
-    if (s->title)
-      fprintf(fp, " * @brief %s\n *\n", s->title);
     if (s->comment)
       fprintf(fp, " * @see %s\n", s->comment);
-    fprintf(fp, " * @note defined at %s:%d:%d\n",
-            spec_name, s->name_lnc.line, s->name_lnc.column);
+   fprintf(fp, 
+       " * - @c Initializer\n"
+       " *   - %s_init()\n"
+       " * - @c Cleanup\n"
+       " *   - %s_cleanup(), %s_list_free()\n"
+       " * - @c JSON @c Decoder\n"
+       " *   - %s_from_json(), %s_list_from_json()\n"
+       " * - @c JSON @c Encoder\n"
+       " *   - %s_to_json(), %s_list_to_json()\n", 
+       t, t, t, t, t, t, t);
   }
   fputs(" */\n", fp);
 
@@ -1782,14 +1792,14 @@ static void gen_opaque_struct(FILE *fp, struct jc_def *d, name_t **ns)
 
   char *t = ns_to_symbol_name(s->name);
 
+  fprintf(fp, "// defined at %s:%d:%d\n",
+          spec_name, s->name_lnc.line, s->name_lnc.column);
   fputs("/**\n", fp);
   {
     if (s->title)
       fprintf(fp, " * @brief %s\n *\n", s->title);
     if (s->comment)
       fprintf(fp, " * @see %s\n", s->comment);
-    fprintf(fp, " * @note defined at %s:%d:%d\n",
-            spec_name, s->name_lnc.line, s->name_lnc.column);
   }
   fputs(" */\n", fp);
 
@@ -1915,9 +1925,6 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
   fprintf(fp, 
       "/**\n"
       " * @file %s\n"
-      " * @author cee-studio\n"
-      " * @date "__DATE__"\n"
-      " * @brief Specs generated file\n"
       " * @see %s\n"
       " */\n\n",
       fname, d->comment);
