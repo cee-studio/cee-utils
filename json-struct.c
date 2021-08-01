@@ -1669,7 +1669,7 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
        " *   - <tt>%s_from_json(char *rbuf, size_t len, struct %s**)</tt>\n"
        " *   - <tt>%s_list_from_json(char *rbuf, size_t len, struct %s***)</tt>\n"
        " * - JSON Encoder:\n"
-       " *   - <tt>%s_to_json(char *wbuf, size_t len, struct %s *p)</tt>\n"
+       " *   - <tt>%s_to_json(char *wbuf, size_t len, struct %s*)</tt>\n"
        " *   - <tt>%s_list_to_json(char *wbuf, size_t len, struct %s**)</tt>\n", 
        t, t,        // Initializer
        t, t, t, t,  // Cleanup
