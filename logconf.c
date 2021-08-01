@@ -51,10 +51,10 @@ logconf_add_id(struct logconf *config, void *addr, const char tag[])
 char*
 logconf_tag(struct logconf *config, void *addr)
 {
-  for (size_t i=0; i < LOGCONF_MAX_IDS; ++i) {
-    if (addr == config->ids[i].addr) {
-      return config->ids[i].tag;
-    }
+  if (config) {
+    for (size_t i=0; i < LOGCONF_MAX_IDS; ++i)
+      if (addr == config->ids[i].addr)
+        return config->ids[i].tag;
   }
   return "NO_TAG";
 }
