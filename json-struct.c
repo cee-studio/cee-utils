@@ -1660,15 +1660,18 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
     if (s->comment)
       fprintf(fp, " * @see %s\n", s->comment);
    fprintf(fp, 
-       " * - @c Initializer\n"
-       " *   - %s_init()\n"
-       " * - @c Cleanup\n"
-       " *   - %s_cleanup(), %s_list_free()\n"
-       " * - @c JSON @c Decoder\n"
-       " *   - %s_from_json(), %s_list_from_json()\n"
-       " * - @c JSON @c Encoder\n"
-       " *   - %s_to_json(), %s_list_to_json()\n", 
-       t, t, t, t, t, t, t);
+       " * - Initializer:\n"
+       " *   - <tt> %s_init(struct %s*) </tt>\n"
+       " * - Cleanup:\n"
+       " *   - <tt> %s_cleanup(struct %s*) %s_list_free(struct %s**) </tt>\n"
+       " * - JSON Decoder:\n"
+       " *   - <tt> %s_from_json(struct %s**) %s_list_from_json(struct %s***) </tt>\n"
+       " * - JSON Encoder:\n"
+       " *   - <tt> %s_to_json(struct %s*) %s_list_to_json(struct %s**) </tt>\n", 
+       t, t, 
+       t, t, t, t, 
+       t, t, t, t,
+       t, t, t, t);
   }
   fputs(" */\n", fp);
 
