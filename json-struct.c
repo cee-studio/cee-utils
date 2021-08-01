@@ -1658,7 +1658,7 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   fputs("/**\n", fp);
   {
     if (s->comment)
-      fprintf(fp, " * @see %s\n", s->comment);
+      fprintf(fp, " * @see %s\n\n", s->comment);
    fprintf(fp, 
        " * - Initializer:\n"
        " *   - <tt>%s_init(struct %s*)</tt>\n"
