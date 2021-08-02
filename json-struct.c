@@ -1658,19 +1658,19 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   fputs("/**\n", fp);
   {
     if (s->comment)
-      fprintf(fp, " * @see %s\n\n", s->comment);
+      fprintf(fp, " * @see %s\n *\n", s->comment);
    fprintf(fp, 
        " * - Initializer:\n"
-       " *   - <tt>%s_init(struct %s*)</tt>\n"
+       " *   - <tt> %s_init(struct %s *) </tt>\n"
        " * - Cleanup:\n"
-       " *   - <tt>%s_cleanup(struct %s*)</tt>\n"
-       " *   - <tt>%s_list_free(struct %s**)</tt>\n"
+       " *   - <tt> %s_cleanup(struct %s *) </tt>\n"
+       " *   - <tt> %s_list_free(struct %s **) </tt>\n"
        " * - JSON Decoder:\n"
-       " *   - <tt>%s_from_json(char *rbuf, size_t len, struct %s**)</tt>\n"
-       " *   - <tt>%s_list_from_json(char *rbuf, size_t len, struct %s***)</tt>\n"
+       " *   - <tt> %s_from_json(char *rbuf, size_t len, struct %s **) </tt>\n"
+       " *   - <tt> %s_list_from_json(char *rbuf, size_t len, struct %s ***) </tt>\n"
        " * - JSON Encoder:\n"
-       " *   - <tt>%s_to_json(char *wbuf, size_t len, struct %s*)</tt>\n"
-       " *   - <tt>%s_list_to_json(char *wbuf, size_t len, struct %s**)</tt>\n", 
+       " *   - <tt> %s_to_json(char *wbuf, size_t len, struct %s *) </tt>\n"
+       " *   - <tt> %s_list_to_json(char *wbuf, size_t len, struct %s **) </tt>\n", 
        t, t,        // Initializer
        t, t, t, t,  // Cleanup
        t, t, t, t,  // JSON Decoder
