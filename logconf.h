@@ -6,7 +6,6 @@ extern "C" {
 #endif // __cplusplus
 
 #include <stdint.h> /* uint64_t */
-#include <limits.h> /* PATH_MAX */
 #include "ntl.h"    /* struct sized_buffer */
 #include "debug.h"
 
@@ -22,7 +21,7 @@ struct logconf {
   size_t len; // config file len
 
   struct { /* the 'bot.log' and 'dump.json' file */
-    char fname[PATH_MAX];
+    char fname[4096];
     FILE *f;
   } logger, http;
 };
