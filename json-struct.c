@@ -182,7 +182,11 @@ struct emit_option {
   int stack_top;
 };
 
-struct emit_option global_option;
+#ifndef JSON_STRUCT_GLOBAL
+#define JSON_STRUCT_GLOBAL
+static struct emit_option global_option;
+#endif
+
 static void init_emit_option(struct emit_option *opt)
 {
   memset(&global_option, 0, sizeof(global_option));
