@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "json-actor.h"
 #include "ntl.h"
 #include "cee-utils.h"
@@ -1918,7 +1919,10 @@ gen_def(FILE *fp, struct jc_def *def)
 static void
 gen_definition(char *fname, char *openmode, struct emit_option * option, struct jc_definition *d)
 {
-  FILE *fp = (fname) ? fopen(fname, openmode) : stderr;
+  if (strchr(openmode, 'a') && access(fname, F_OK) != 0)
+    openmode = "w"; // first time creating this file
+
+  FILE *fp = fname ? fopen(fname, openmode) : stderr;
   VASSERT_S(fp != NULL, "Expected file '%s', but it doesn't exist", fname);
 
   init_emit_option(option);
@@ -1932,23 +1936,29 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
       d->spec_name);
   }
 
-  fprintf(fp, 
-      "/**\n"
-      " * @file %s\n"
-      " * @see %s\n"
-      " */\n\n",
-      fname, d->comment);
+  if (strchr(openmode, 'w')) {
+    fprintf(fp, 
+        "/**\n"
+        " * @file %s\n"
+        " * @see %s\n"
+        " */\n\n",
+        fname, d->comment);
+  }
 
-  if (global_option.type == FILE_SINGLE_FILE || global_option.type == FILE_CODE)
-    fprintf(fp, "#include \"specs.h\"\n");
+  if (FILE_SINGLE_FILE == global_option.type
+      || FILE_CODE == global_option.type)
+  {
+    fprintf(fp, 
+        "#include \"specs-deps.h\"\n"
+        "#include \"%s.h\"\n", (char*)d->namespace[0]);
+  }
 
   gen_open_namespace(fp, d->namespace);
   ntl_apply(fp, (ntl_t)d->defs, (vvpvp)gen_def);
   gen_close_namespace(fp, d->namespace);
 
-  if (fname) {
+  if (fname)
     fclose(fp);
-  }
 }
 
 static void
