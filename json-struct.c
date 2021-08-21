@@ -413,6 +413,7 @@ emit_field_spec(void *cxt, FILE *fp, struct jc_field *f)
 
 struct jc_definition {
   char *spec_name;
+  NTL_T(name_t) incl_headers;
   bool is_disabled;
   char *comment;
   NTL_T(name_t) namespace; // ntl
@@ -1945,12 +1946,12 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
         fname, d->comment);
   }
 
-  if (FILE_SINGLE_FILE == global_option.type
-      || FILE_CODE == global_option.type)
+  if (d->incl_headers 
+      && (FILE_SINGLE_FILE == global_option.type 
+          || FILE_CODE == global_option.type))
   {
-    fprintf(fp, 
-        "#include \"specs-deps.h\"\n"
-        "#include \"%s.h\"\n", (char*)d->namespace[0]);
+    for (int i=0; d->incl_headers[i]; ++i)
+      fprintf(fp, "#include \"%s\"\n", (char*)d->incl_headers[i]);
   }
 
   gen_open_namespace(fp, d->namespace);
