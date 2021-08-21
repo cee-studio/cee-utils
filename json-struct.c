@@ -7,8 +7,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "json-actor.h"
-#include "ntl.h"
 #include "cee-utils.h"
+
+// generated code dependencies
+static const char SPECS_DEPS_H[] =
+  "#include <stdbool.h>\n"
+  "#include <stdlib.h>\n"
+  "#include <string.h>\n"
+  "#include <strings.h>\n"
+  "#include \"json-actor.h\"\n"
+  "#include \"json-actor-boxed.h\"\n"
+  "#include \"cee-utils.h\"\n"
+;
 
 /*
  *
@@ -1946,12 +1956,13 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
         fname, d->comment);
   }
 
-  if (d->incl_headers 
-      && (FILE_SINGLE_FILE == global_option.type 
-          || FILE_CODE == global_option.type))
+  if (FILE_SINGLE_FILE == global_option.type
+      || FILE_CODE == global_option.type)
   {
-    for (int i=0; d->incl_headers[i]; ++i)
-      fprintf(fp, "#include \"%s\"\n", (char*)d->incl_headers[i]);
+    fputs(SPECS_DEPS_H, fp);
+    if (d->incl_headers)
+      for (int i=0; d->incl_headers[i]; ++i)
+        fprintf(fp, "#include \"%s\"\n", (char*)d->incl_headers[i]);
   }
 
   gen_open_namespace(fp, d->namespace);
