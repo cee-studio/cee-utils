@@ -741,18 +741,35 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
   if (e->typedef_name) 
     t_alias = ns_to_symbol_name(e->typedef_name);
 
+  if (e->title)
+    fprintf(fp, "// %s\n", e->title);
+  fprintf(fp, "// defined at %s:%d:%d\n",
+          spec_name, e->name_lnc.line, e->name_lnc.column);
+  fputs("/**\n", fp);
+  {
+    if (e->comment)
+      fprintf(fp, " * @see %s\n *\n", e->comment);
+   fprintf(fp, 
+       " * - <tt> char* %s_print(enum %s code) </tt>\n"
+       " * - <tt> enum %s %s_eval(char *code_as_str) </tt>\n"
+       " * - <tt> bool %s_cmp(enum %s code, char *code_as_str) </tt>\n",
+       t, t, 
+       t, t,
+       t, t);
+  }
+  fputs(" */\n", fp);
+
   if (t_alias)
     fprintf(fp, "typedef ");
-  
   fprintf(fp, "enum %s {\n", t);
-  int i = 0, prev_value = -1;
 
-  for (i = 0; e->items && e->items[i]; i++) {
+  int i = 0, prev_value = -1;
+  for ( ; e->items && e->items[i]; i++) {
     struct jc_item *item = e->items[i];
     char *item_name = ns_to_item_name(item->name);
 
     if (item->todo) {
-      fprintf(fp, "/// @todo %s %s\n", item_name, item->comment);
+      fprintf(fp, "// @todo %s %s\n", item_name, item->comment);
     }
     else {
       fprintf(fp, "  %s", item_name);
@@ -764,8 +781,9 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
         fprintf(fp, " = %d", prev_value + 1);
         prev_value ++;
       }
+
       if (item->comment)
-        fprintf(fp, ", // %s\n", item->comment);
+        fprintf(fp, ", ///< %s\n", item->comment);
       else
         fprintf(fp, ",\n");
     }
@@ -776,7 +794,7 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
     fprintf(fp, "};\n");
 }
 
-static void gen_enum_from_string(FILE *fp, struct jc_enum *e)
+static void gen_enum_eval(FILE *fp, struct jc_enum *e)
 {
   char *t = ns_to_symbol_name(e->name);
   char *t_alias = NULL;
@@ -785,9 +803,9 @@ static void gen_enum_from_string(FILE *fp, struct jc_enum *e)
     t_alias = ns_to_symbol_name(e->typedef_name);
 
   if (t_alias)
-    fprintf(fp, "%s %s_from_string(char *s){\n", t_alias, t_alias);
+    fprintf(fp, "%s %s_eval(char *s){\n", t_alias, t_alias);
   else
-    fprintf(fp, "enum %s %s_from_string(char *s){\n", t, t);
+    fprintf(fp, "enum %s %s_eval(char *s){\n", t, t);
 
   for (int i = 0; e->items && e->items[i]; i++) {
     struct jc_item *item = e->items[i];
@@ -798,11 +816,11 @@ static void gen_enum_from_string(FILE *fp, struct jc_enum *e)
       fprintf(fp, "  if(strcasecmp(\"%s\", s) == 0) return %s;\n", 
               item->name, item_name);
   }
-  fprintf(fp, "  abort();\n");
+  fprintf(fp, "  ERR(\"'%%s' doesn't match any known enumerator.\", s);\n");
   fprintf(fp, "}\n");
 }
 
-static void gen_enum_to_string(FILE *fp, struct jc_enum *e)
+static void gen_enum_print(FILE *fp, struct jc_enum *e)
 {
   char *t = ns_to_symbol_name(e->name);
   char *t_alias = NULL;
@@ -811,23 +829,25 @@ static void gen_enum_to_string(FILE *fp, struct jc_enum *e)
     t_alias = ns_to_symbol_name(e->typedef_name);
 
   if (t_alias)
-    fprintf(fp, "char* %s_to_string(%s v){\n", t_alias, t_alias);
+    fprintf(fp, "char* %s_print(%s v){\n", t_alias, t_alias);
   else
-    fprintf(fp, "char* %s_to_string(enum %s v){\n", t, t);
+    fprintf(fp, "char* %s_print(enum %s v){\n", t, t);
 
+  fprintf(fp, "\n  switch (v) {\n");
   for (int i = 0; e->items && e->items[i]; i++) {
     struct jc_item *item = e->items[i];
-    char *item_name = ns_to_item_name(item->name);
     if (item->todo)
       fprintf(fp, "/* %s */\n", item->name);
     else
-      fprintf(fp, "  if (v == %s) return \"%s\";\n", 
-              item_name, item->name);
+      fprintf(fp, "  case %s: return \"%s\";\n", 
+              ns_to_item_name(item->name), item->name);
   }
-  fprintf(fp, "\n  return (void*)0;\n");
+  fprintf(fp, "  }\n");
+
+  fprintf(fp, "\n  return NULL;\n");
   fprintf(fp, "}\n");
 }
-
+#if 0 /* UNUSED */
 static void gen_enum_to_strings(FILE *fp, struct jc_enum *e)
 {
   char *t = ns_to_symbol_name(e->name);
@@ -865,8 +885,8 @@ static void gen_enum_to_strings(FILE *fp, struct jc_enum *e)
   fprintf(fp, "\n  abort();\n");
   fprintf(fp, "}\n");
 }
-
-static void gen_enum_has(FILE *fp, struct jc_enum *e)
+#endif
+static void gen_enum_cmp(FILE *fp, struct jc_enum *e)
 {
   char *t = ns_to_symbol_name(e->name);
   char *t_alias = NULL;
@@ -875,25 +895,19 @@ static void gen_enum_has(FILE *fp, struct jc_enum *e)
     t_alias = ns_to_symbol_name(e->typedef_name);
 
   if (t_alias) {
-    fprintf(fp, "bool %s_has(%s v, char *s) {\n", t_alias, t_alias);
-    fprintf(fp, "  %s v1 = %s_from_string(s);\n", t_alias, t_alias);
+    fprintf(fp, "bool %s_cmp(%s v, char *s) {\n", t_alias, t_alias);
+    fprintf(fp, "  %s v1 = %s_eval(s);\n", t_alias, t_alias);
   }
   else {
-    fprintf(fp, "bool %s_has(enum %s v, char *s) {\n", t, t);
-    fprintf(fp, "  enum %s v1 = %s_from_string(s);\n", t, t);
+    fprintf(fp, "bool %s_cmp(enum %s v, char *s) {\n", t, t);
+    fprintf(fp, "  enum %s v1 = %s_eval(s);\n", t, t);
   }
 
-  for (int i = 0; e->items && e->items[i]; i++) {
-    struct jc_item *item = e->items[i];
-    //char *item_name = ns_to_item_name(item->name);
-    if (item->todo)
-      fprintf(fp, "/* %s */\n", item->name);
-    else if (e->enum_is_bitwise_flag)
-      fprintf(fp, "  if (v & v1) return true;\n");
-    else
-      fprintf(fp, "  if (v == v1) return true;\n");
-  }
-  fprintf(fp, "  return false;\n");
+  if (e->enum_is_bitwise_flag)
+    fprintf(fp, "  return v & v1;\n");
+  else
+    fprintf(fp, "  return v == v1;\n");
+
   fprintf(fp, "}\n");
 }
 
@@ -905,14 +919,14 @@ static void gen_forward_enum_fun_declare(FILE *fp, struct jc_enum *e)
     t_alias = ns_to_symbol_name(e->typedef_name);
 
   if (t_alias) {
-    fprintf(fp, "extern char* %s_to_string(%s);\n", t_alias, t_alias);
-    fprintf(fp, "extern %s %s_from_string(char*);\n", t_alias, t_alias);
-    fprintf(fp, "extern bool %s_has(%s, char*);\n", t_alias, t_alias);
+    fprintf(fp, "extern char* %s_print(%s);\n", t_alias, t_alias);
+    fprintf(fp, "extern %s %s_eval(char*);\n", t_alias, t_alias);
+    fprintf(fp, "extern bool %s_cmp(%s, char*);\n", t_alias, t_alias);
   }
   else {
-    fprintf(fp, "extern char* %s_to_string(enum %s);\n", t, t);
-    fprintf(fp, "extern enum %s %s_from_string(char*);\n", t, t);
-    fprintf(fp, "extern bool %s_has(enum %s, char*);\n", t, t);
+    fprintf(fp, "extern char* %s_print(enum %s);\n", t, t);
+    fprintf(fp, "extern enum %s %s_eval(char*);\n", t, t);
+    fprintf(fp, "extern bool %s_cmp(enum %s, char*);\n", t, t);
   }
 }
 
@@ -930,9 +944,9 @@ static void gen_enum_all(FILE *fp, struct jc_def *d, name_t **ns)
     gen_forward_enum_fun_declare(fp, e);
   }
   else if (global_option.type == FILE_CODE) {
-    gen_enum_from_string(fp, e);
-    gen_enum_to_string(fp, e);
-    gen_enum_has(fp, e);
+    gen_enum_eval(fp, e);
+    gen_enum_print(fp, e);
+    gen_enum_cmp(fp, e);
   }
   /* */
   gen_close_namespace(fp, ns);
@@ -1664,6 +1678,7 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
   char *t_alias = NULL;
+
   if (s->typedef_name)
     t_alias = ns_to_symbol_name(s->typedef_name);
 
@@ -1677,16 +1692,16 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
       fprintf(fp, " * @see %s\n *\n", s->comment);
    fprintf(fp, 
        " * - Initializer:\n"
-       " *   - <tt> %s_init(struct %s *) </tt>\n"
+       " *   - <tt> void %s_init(struct %s *) </tt>\n"
        " * - Cleanup:\n"
-       " *   - <tt> %s_cleanup(struct %s *) </tt>\n"
-       " *   - <tt> %s_list_free(struct %s **) </tt>\n"
+       " *   - <tt> void %s_cleanup(struct %s *) </tt>\n"
+       " *   - <tt> void %s_list_free(struct %s **) </tt>\n"
        " * - JSON Decoder:\n"
-       " *   - <tt> %s_from_json(char *rbuf, size_t len, struct %s **) </tt>\n"
-       " *   - <tt> %s_list_from_json(char *rbuf, size_t len, struct %s ***) </tt>\n"
+       " *   - <tt> void %s_from_json(char *rbuf, size_t len, struct %s **) </tt>\n"
+       " *   - <tt> void %s_list_from_json(char *rbuf, size_t len, struct %s ***) </tt>\n"
        " * - JSON Encoder:\n"
-       " *   - <tt> %s_to_json(char *wbuf, size_t len, struct %s *) </tt>\n"
-       " *   - <tt> %s_list_to_json(char *wbuf, size_t len, struct %s **) </tt>\n", 
+       " *   - <tt> void %s_to_json(char *wbuf, size_t len, struct %s *) </tt>\n"
+       " *   - <tt> void %s_list_to_json(char *wbuf, size_t len, struct %s **) </tt>\n", 
        t, t,        // Initializer
        t, t, t, t,  // Cleanup
        t, t, t, t,  // JSON Decoder
