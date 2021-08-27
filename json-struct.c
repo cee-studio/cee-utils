@@ -750,9 +750,14 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
     if (e->comment)
       fprintf(fp, " * @see %s\n *\n", e->comment);
    fprintf(fp, 
-       " * - <tt> char* %s_print(enum %s code) </tt>\n"
-       " * - <tt> enum %s %s_eval(char *code_as_str) </tt>\n"
-       " * - <tt> bool %s_cmp(enum %s code, char *code_as_str) </tt>\n",
+       " * @verbatim embed:rst:leading-asterisk\n"
+       " * .. container:: toggle\n\n"
+       " *   .. container:: header\n\n"
+       " *     **Methods**\n\n"
+       " *   * :code:`char* %s_print(enum %s code)`\n"
+       " *   * :code:`enum %s %s_eval(char *code_as_str)`\n"
+       " *   * :code:`bool %s_cmp(enum %s code, char *code_as_str)`\n"
+       " * @endverbatim\n",
        t, t, 
        t, t,
        t, t);
@@ -1691,17 +1696,22 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
     if (s->comment)
       fprintf(fp, " * @see %s\n *\n", s->comment);
    fprintf(fp, 
-       " * - Initializer:\n"
-       " *   - <tt> void %s_init(struct %s *) </tt>\n"
-       " * - Cleanup:\n"
-       " *   - <tt> void %s_cleanup(struct %s *) </tt>\n"
-       " *   - <tt> void %s_list_free(struct %s **) </tt>\n"
-       " * - JSON Decoder:\n"
-       " *   - <tt> void %s_from_json(char *rbuf, size_t len, struct %s **) </tt>\n"
-       " *   - <tt> void %s_list_from_json(char *rbuf, size_t len, struct %s ***) </tt>\n"
-       " * - JSON Encoder:\n"
-       " *   - <tt> void %s_to_json(char *wbuf, size_t len, struct %s *) </tt>\n"
-       " *   - <tt> void %s_list_to_json(char *wbuf, size_t len, struct %s **) </tt>\n", 
+       " * @verbatim embed:rst:leading-asterisk\n"
+       " * .. container:: toggle\n\n"
+       " *   .. container:: header\n\n"
+       " *     **Methods**\n\n"
+       " *   * Initializer:\n\n"
+       " *     * :code:`void %s_init(struct %s *)`\n"
+       " *   * Cleanup:\n\n"
+       " *     * :code:`void %s_cleanup(struct %s *)`\n"
+       " *     * :code:`void %s_list_free(struct %s **)`\n"
+       " *   * JSON Decoder:\n\n"
+       " *     * :code:`void %s_from_json(char *rbuf, size_t len, struct %s **)`\n"
+       " *     * :code:`void %s_list_from_json(char *rbuf, size_t len, struct %s ***)`\n"
+       " *   * JSON Encoder:\n\n"
+       " *     * :code:`void %s_to_json(char *wbuf, size_t len, struct %s *)`\n"
+       " *     * :code:`void %s_list_to_json(char *wbuf, size_t len, struct %s **)`\n"
+       " * @endverbatim\n",
        t, t,        // Initializer
        t, t, t, t,  // Cleanup
        t, t, t, t,  // JSON Decoder
