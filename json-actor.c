@@ -1740,8 +1740,6 @@ prepare_actor(
   struct stack * stack,
   struct operand_addrs * operand_addrs,
   struct composite_value * cv,
-  char * pos,
-  size_t size,
   char * actor,
   va_list ap)
 {
@@ -1799,7 +1797,7 @@ json_vinject(
   struct stack stack = { .array = {0}, .top = 0, .actor = INJECTOR };
   struct operand_addrs rec;
   struct composite_value cv;
-  prepare_actor(parse_actor, &stack, &rec, &cv, pos, size, injector, ap);
+  prepare_actor(parse_actor, &stack, &rec, &cv, injector, ap);
 
   struct injection_info info = { 0 };
   char * mem = NULL;
@@ -2450,7 +2448,7 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   struct stack stack = { .array = {0}, .top = 0, .actor = EXTRACTOR };
   struct operand_addrs rec;
   struct composite_value cv;
-  prepare_actor(parse_actor, &stack, &rec, &cv, json, size, extractor, ap);
+  prepare_actor(parse_actor, &stack, &rec, &cv, extractor, ap);
   struct e_info info = {
     .pos = json, .E = NULL,
     .input = {.start = json, .size = size}
@@ -2664,7 +2662,7 @@ query_vinject(char *pos, size_t size, char *injector, va_list ap)
   struct stack stack = { .array = {0}, .top = 0, .actor = INJECTOR };
   struct operand_addrs  rec;
   struct composite_value cv;
-  prepare_actor(parse_query_string, &stack, &rec, &cv, pos, size, injector, ap);
+  prepare_actor(parse_query_string, &stack, &rec, &cv, injector, ap);
 
   struct injection_info info = { 0 };
   char *mem = NULL;
