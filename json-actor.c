@@ -1306,14 +1306,6 @@ static void  free_composite_value (struct composite_value *cv)
   }
 }
 
-
-/*
- * write only buffer, it's data should never be trusted
- * it is used to simplify the calculation of bytes needed
- * for json_injector.
- */
-static char write_only[1024*10];
-
 enum encoding_type
 {
   ENCODING_JSON = 0,
@@ -1797,51 +1789,27 @@ json_vinject(
   struct stack stack = { .array = {0}, .top = 0, .actor = INJECTOR };
   struct operand_addrs rec;
   struct composite_value cv;
+
   prepare_actor(parse_actor, &stack, &rec, &cv, injector, ap);
-
-  struct injection_info info = { 0 };
-  char * mem = NULL;
-  size_t mem_size = 0;
-  memset(&info, 0, sizeof(info));
-
-  info.encoding = ENCODING_JSON;
-  if (1)
-    info.fp = NULL;
-  else
-    info.fp = open_memstream(&mem, &mem_size);
-
   check_ptr_maps(cv.maps);
-  info.A = cv.maps;
 
-  char * output_buf;
-  size_t output_size;
-  if (NULL == pos) {
-    output_buf = NULL; //write_only;
-    output_size = 0;   //sizeof(write_only);
-  }
-  else {
-    output_buf = pos;
-    output_size = size;
-  }
+
+  char * output_buf = pos;
+  size_t output_size = pos ? size : 0;
+
+  struct injection_info info = {
+    .encoding = ENCODING_JSON,
+    .A = cv.maps
+  };
 
   size_t used_bytes =
     inject_composite_value(output_buf, output_size, &cv, &info);
   if (info.fp)
     fclose(info.fp);
 
-  if (mem) {
-    ASSERT_S(used_bytes == mem_size, "snprint.size != open_memstream.size");
-    //fprintf(stderr, "%s\n", write_only);
-    if (mem) {
-      //fprintf(stderr, "%s\n", mem);
-      free(mem);
-    }
-  }
   free_composite_value(&cv);
 
   return used_bytes;
-
-  (void)write_only;
 }
 
 /*
@@ -1928,7 +1896,7 @@ static char * copy_over_string (size_t * new_size, char * str, size_t len)
   }
 }
 
-struct e_info {
+struct extraction_info {
   struct sized_buffer input;
   char * pos;
   jsmntok_t *tokens;
@@ -1936,7 +1904,7 @@ struct e_info {
   struct ptr_map **E;
 };
 
-static size_t extract_str (struct action * v, int i, struct e_info * info)
+static size_t extract_str (struct action * v, int i, struct extraction_info * info)
 {
   jsmntok_t * tokens = info->tokens;
   char * json = info->pos;
@@ -2009,7 +1977,7 @@ static size_t extract_str (struct action * v, int i, struct e_info * info)
   return 1;
 }
 
-static size_t extract_scalar (struct action * a, int i, struct e_info * info)
+static size_t extract_scalar (struct action * a, int i, struct extraction_info * info)
 {
   jsmntok_t * tokens = info->tokens;
   char * json = info->pos, * xend; // exclusive end
@@ -2165,7 +2133,7 @@ static size_t extract_scalar (struct action * a, int i, struct e_info * info)
   return 1;
 }
 
-static size_t apply_extraction(struct value *v, int idx, struct e_info *info)
+static size_t apply_extraction(struct value *v, int idx, struct extraction_info *info)
 {
   jsmntok_t * tokens = info->tokens;
   char * json = info->pos;
@@ -2234,12 +2202,12 @@ static size_t apply_extraction(struct value *v, int idx, struct e_info *info)
 }
 
 static size_t
-extract_object_value (struct composite_value * cv, int parent, struct e_info *);
+extract_object_value (struct composite_value * cv, int parent, struct extraction_info *);
 static size_t
-extract_array_value (struct composite_value * cv, int parent, struct e_info *);
+extract_array_value (struct composite_value * cv, int parent, struct extraction_info *);
 
 static size_t
-extract_value (struct value * v, int val_idx, struct e_info * info)
+extract_value (struct value * v, int val_idx, struct extraction_info * info)
 {
   size_t ret = 0;
   switch (v->tag) {
@@ -2268,7 +2236,7 @@ extract_access_path (
   int val_idx,
   struct access_path_value *apv,
   struct access_path *curr_path,
-  struct e_info * info)
+  struct extraction_info * info)
 {
   char * json = info->pos;
   jsmntok_t * tokens = info->tokens;
@@ -2331,7 +2299,7 @@ static size_t
 extract_object_value (
   struct composite_value * cv,
   int parent,
-  struct e_info * info)
+  struct extraction_info * info)
 {
   char * json = info->pos;
   jsmntok_t * tokens = info->tokens;
@@ -2395,7 +2363,7 @@ static size_t
 extract_array_value (
   struct composite_value * cv,
   int parent,
-  struct e_info * info)
+  struct extraction_info * info)
 {
   jsmntok_t * tokens = info->tokens;
   struct sized_buffer **token_array = NULL;
@@ -2448,23 +2416,22 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   struct stack stack = { .array = {0}, .top = 0, .actor = EXTRACTOR };
   struct operand_addrs rec;
   struct composite_value cv;
+
   prepare_actor(parse_actor, &stack, &rec, &cv, extractor, ap);
-  struct e_info info = {
-    .pos = json, .E = NULL,
-    .input = {.start = json, .size = size}
-  };
-  size_t ret = 0;
+  check_ptr_maps(cv.maps);
+
+
+  jsmn_parser parser;
 
   //calculate how many tokens are needed
-  jsmn_parser parser;
   jsmn_init(&parser);
-  jsmntok_t * tokens = NULL;
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   JSMN_CHECK(num_tok);
   DS_PRINT("# of tokens = %d", num_tok);
 
-  tokens = malloc(sizeof(jsmntok_t) * num_tok);
+  jsmntok_t * tokens = malloc(sizeof(jsmntok_t) * num_tok);
 
+  //fetch tokens
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
   JSMN_CHECK(num_tok);
@@ -2473,10 +2440,17 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
     ERR("Found %d, Object or array expected", tokens[0].type);
 
-  info.n_tokens = num_tok;
-  info.tokens = tokens;
-  check_ptr_maps(cv.maps);
-  info.E = cv.maps;
+
+  struct extraction_info info = {
+    .pos = json, 
+    .E = cv.maps,
+    .input = {.start = json, .size = size},
+    .n_tokens = num_tok,
+    .tokens = tokens
+  };
+
+
+  size_t ret = 0;
   switch (tokens[0].type)
   {
     case JSMN_OBJECT:
@@ -2495,8 +2469,10 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
       ERR("Unexpected toplevel token %s\n", type_to_string(tokens[0].type));
   }
 
+
   free(tokens);
   free_composite_value(&cv);
+
   return ret;
 }
 
@@ -2662,45 +2638,26 @@ query_vinject(char *pos, size_t size, char *injector, va_list ap)
   struct stack stack = { .array = {0}, .top = 0, .actor = INJECTOR };
   struct operand_addrs  rec;
   struct composite_value cv;
+
   prepare_actor(parse_query_string, &stack, &rec, &cv, injector, ap);
-
-  struct injection_info info = { 0 };
-  char *mem = NULL;
-  size_t mem_size = 0;
-  if (1)
-    info.fp = NULL;
-  else
-    info.fp = open_memstream(&mem, &mem_size);
-
-  info.encoding = ENCODING_URL;
   check_ptr_maps(cv.maps);
-  info.A = cv.maps;
 
-  char * output_buf;
-  size_t output_size;
-  if (NULL == pos) {
-    output_buf = NULL; //write_only;
-    output_size = 0;   //sizeof(write_only);
-  }
-  else {
-    output_buf = pos;
-    output_size = size;
-  }
+
+  char * output_buf = pos;
+  size_t output_size = pos ? size : 0;
+
+  struct injection_info info = {
+    .encoding = ENCODING_URL,
+    .A = cv.maps
+  };
 
   size_t used_bytes =
     inject_query_key_value_list(output_buf, output_size, &cv, &info);
   if (info.fp)
     fclose(info.fp);
 
-  if (mem) {
-    ASSERT_S(used_bytes == mem_size, "snprint.size != open_memstream.size");
-    //fprintf(stderr, "%s\n", write_only);
-    if (mem) {
-      //fprintf(stderr, "%s\n", mem);
-      free(mem);
-    }
-  }
   free_composite_value(&cv);
+
   return used_bytes;
 }
 
