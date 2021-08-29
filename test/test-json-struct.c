@@ -33,6 +33,7 @@ int main (int argc, char **argv)
       "      { |name|:|f12|, |type|:{ |base|:|char|, |dec|:|*|}, |inject_if_not|:null },\n"
       "      { |name|:|f13|, |type|:{ |base|:|char|, |dec|:|[12]|}, |inject_if_not|:|| },\n"
       "      { |name|:|f14|, |type|:{ |base|:|char|, |dec|:|*|, |converter|:|iso8601|}, |inject_if_not|:10 },\n"
+      "      { |name|:|f15|, |type|:{ |base|:|int|, |int_alias|:|enum C_A_B_enum1|, |dec|:|ntl|}}\n"
       "    ]\n"
       "  }\n"
       " ,{"

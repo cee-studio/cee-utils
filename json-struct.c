@@ -1181,7 +1181,16 @@ static void to_action(struct jc_field *f, struct action *act)
   act->pre_dec = "";
   if (f->type.int_alias) {
     act->c_type = f->type.int_alias;
-    act->fun_prefix = f->type.int_alias;
+    char *tok = strstr(f->type.int_alias, "enum");
+    if (tok != NULL) {
+      tok += strlen("enum");
+      while (*tok && isspace(*tok)) tok++;
+      asprintf(&act->fun_prefix, "%s", tok);
+      act->fun_prefix = to_C_name(act->fun_prefix);
+    }
+    else {
+      act->fun_prefix = f->type.int_alias;
+    }
   }
   else {
     act->c_type = f->type.base;
