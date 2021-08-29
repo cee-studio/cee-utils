@@ -756,10 +756,8 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
        " *     **Methods**\n\n"
        " *   * :code:`char* %s_print(enum %s code)`\n"
        " *   * :code:`enum %s %s_eval(char *code_as_str)`\n"
-       " *   * :code:`bool %s_cmp(enum %s code, char *code_as_str)`\n"
        " * @endverbatim\n",
        t, t, 
-       t, t,
        t, t);
   }
   fputs(" */\n", fp);
@@ -891,30 +889,6 @@ static void gen_enum_to_strings(FILE *fp, struct jc_enum *e)
   fprintf(fp, "}\n");
 }
 #endif
-static void gen_enum_cmp(FILE *fp, struct jc_enum *e)
-{
-  char *t = ns_to_symbol_name(e->name);
-  char *t_alias = NULL;
-  
-  if (e->typedef_name) 
-    t_alias = ns_to_symbol_name(e->typedef_name);
-
-  if (t_alias) {
-    fprintf(fp, "bool %s_cmp(%s v, char *s) {\n", t_alias, t_alias);
-    fprintf(fp, "  %s v1 = %s_eval(s);\n", t_alias, t_alias);
-  }
-  else {
-    fprintf(fp, "bool %s_cmp(enum %s v, char *s) {\n", t, t);
-    fprintf(fp, "  enum %s v1 = %s_eval(s);\n", t, t);
-  }
-
-  if (e->enum_is_bitwise_flag)
-    fprintf(fp, "  return v & v1;\n");
-  else
-    fprintf(fp, "  return v == v1;\n");
-
-  fprintf(fp, "}\n");
-}
 
 static void gen_forward_enum_fun_declare(FILE *fp, struct jc_enum *e)
 {
@@ -926,12 +900,10 @@ static void gen_forward_enum_fun_declare(FILE *fp, struct jc_enum *e)
   if (t_alias) {
     fprintf(fp, "extern char* %s_print(%s);\n", t_alias, t_alias);
     fprintf(fp, "extern %s %s_eval(char*);\n", t_alias, t_alias);
-    fprintf(fp, "extern bool %s_cmp(%s, char*);\n", t_alias, t_alias);
   }
   else {
     fprintf(fp, "extern char* %s_print(enum %s);\n", t, t);
     fprintf(fp, "extern enum %s %s_eval(char*);\n", t, t);
-    fprintf(fp, "extern bool %s_cmp(enum %s, char*);\n", t, t);
   }
 }
 
@@ -951,7 +923,6 @@ static void gen_enum_all(FILE *fp, struct jc_def *d, name_t **ns)
   else if (global_option.type == FILE_CODE) {
     gen_enum_eval(fp, e);
     gen_enum_print(fp, e);
-    gen_enum_cmp(fp, e);
   }
   /* */
   gen_close_namespace(fp, ns);
