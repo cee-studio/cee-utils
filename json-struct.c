@@ -858,79 +858,42 @@ static void gen_enum_print(FILE *fp, struct jc_enum *e)
   fprintf(fp, "\n  return NULL;\n");
   fprintf(fp, "}\n");
 }
-#if 0 /* UNUSED */
-static void gen_enum_to_strings(FILE *fp, struct jc_enum *e)
-{
-  char *t = ns_to_symbol_name(e->name);
-  char *t_alias = NULL;
-  
-  if (e->typedef_name) 
-    t_alias = ns_to_symbol_name(e->typedef_name);
-    
-  if (t_alias)
-    fprintf(fp, "char** %s_to_ntl_string(%s v){\n", t_alias, t_alias);
-  else
-    fprintf(fp, "char** %s_to_ntl_string(enum %s v){\n", t, t);
 
-  fprintf(fp, "  int count = 0;\n");
-  for (int i = 0; e->items && e->items[i]; i++) {
-    struct jc_item *item = e->items[i];
-    char *item_name = ns_to_item_name(item->name);
-    if (item->todo)
-      fprintf(fp, "/* %s */\n", item->name);
-    else
-      fprintf(fp, "  if (v & %s) count ++;\n", item_name);
-  }
-
-  fprintf(fp, "  char **ls = (char**)ntl_calloc(count, sizeof(name_t));\n");
-  fprintf(fp, "  int i = 0;\n");
-  for (int i = 0; e->items && e->items[i]; i++) {
-    struct jc_item *item = e->items[i];
-    char *item_name = ns_to_item_name(item->name);
-    if (item->todo)
-      fprintf(fp, "/* %s */\n", item->name);
-    else
-      fprintf(fp, "  if (v & %s) strcpy(ls[i], \"%s\"); i++;\n", item_name, item->name);
-  }
-
-  fprintf(fp, "\n  abort();\n");
-  fprintf(fp, "}\n");
-}
-#endif
-
-static void gen_forward_enum_fun_declare(FILE *fp, struct jc_enum *e)
-{
-  char *t = ns_to_symbol_name(e->name);
-  char *t_alias = NULL;
-  if (e->typedef_name)
-    t_alias = ns_to_symbol_name(e->typedef_name);
-
-  if (t_alias) {
-    fprintf(fp, "extern char* %s_print(%s);\n", t_alias, t_alias);
-    fprintf(fp, "extern %s %s_eval(char*);\n", t_alias, t_alias);
-  }
-  else {
-    fprintf(fp, "extern char* %s_print(enum %s);\n", t, t);
-    fprintf(fp, "extern enum %s %s_eval(char*);\n", t, t);
-  }
-}
+static void gen_forward_fun_declare(FILE *fp, struct jc_def *d);
+static void gen_typedef (FILE *fp);
+static void gen_default(FILE *fp, struct jc_def *d);
+static void gen_wrapper(FILE *fp, struct jc_def *d);
 
 static void gen_enum_all(FILE *fp, struct jc_def *d, name_t **ns)
 {
   struct jc_enum *e = (struct jc_enum*)d;
-  fprintf(fp, "\n\n");
 
+  fprintf(fp, "\n\n");
   gen_open_namespace(fp, ns);
   /* */
-  if (global_option.type == FILE_DECLARATION 
-      || global_option.type == FILE_ENUM_DECLARATION
-      || global_option.type == FILE_HEADER) {
-    gen_enum(fp, e);
-    gen_forward_enum_fun_declare(fp, e);
-  }
-  else if (global_option.type == FILE_CODE) {
-    gen_enum_eval(fp, e);
-    gen_enum_print(fp, e);
+  switch (global_option.type) {
+  case FILE_DECLARATION:
+  case FILE_ENUM_DECLARATION:
+  case FILE_HEADER:
+      gen_enum(fp, e);
+      gen_forward_fun_declare(fp, d);
+      break;
+  case FILE_CODE:
+      gen_typedef(fp);
+      gen_wrapper(fp, d);
+
+      gen_enum_eval(fp, e);
+      fprintf(fp, "\n");
+
+      gen_enum_print(fp, e);
+      fprintf(fp, "\n");
+
+      gen_default(fp, d);
+      fprintf(fp, "\n");
+
+      break;
+  default:
+      break;
   }
   /* */
   gen_close_namespace(fp, ns);
@@ -1348,32 +1311,47 @@ static void gen_init (FILE *fp, struct jc_struct *s)
   fprintf(fp, "}\n");
 }
 
-static void gen_default(FILE *fp, struct jc_struct *s)
+static void gen_default(FILE *fp, struct jc_def *d)
 {
-  char * type = ns_to_symbol_name(s->name);
+  char * type = ns_to_symbol_name(d->name);
 
-  gen_init(fp, s);
-  fprintf(fp, "void %s_list_free(struct %s **p) {\n", type, type);
-  fprintf(fp, "  ntl_free((void**)p, (vfvp)%s_cleanup);\n", type);
+  char extractor[256], injector[256], cleanup[256];
+  char * prefix;
+  if (d->is_struct) {
+    gen_init(fp, (struct jc_struct*)d);
+    snprintf(extractor, sizeof(extractor), "%s_from_json_v", type);
+    snprintf(injector, sizeof(injector), "%s_to_json_v", type);
+    snprintf(cleanup, sizeof(cleanup), "(vfvp)%s_cleanup", type);
+    prefix = "struct";
+  }
+  else {
+    snprintf(extractor, sizeof(extractor), "ja_u64_from_json_v");
+    snprintf(injector, sizeof(injector), "ja_u64_to_json_v");
+    snprintf(cleanup, sizeof(cleanup), "NULL");
+    prefix = "enum";
+  }
+
+  fprintf(fp, "void %s_list_free(%s %s **p) {\n", type, prefix, type);
+  fprintf(fp, "  ntl_free((void**)p, %s);\n", cleanup);
   fprintf(fp, "}\n\n");
 
-  fprintf(fp, "void %s_list_from_json(char *str, size_t len, struct %s ***p)\n",
-          type, type);
+  fprintf(fp, "void %s_list_from_json(char *str, size_t len, %s %s ***p)\n",
+          type, prefix, type);
   fprintf(fp, "{\n");
   fprintf(fp, "  struct ntl_deserializer d;\n");
   fprintf(fp, "  memset(&d, 0, sizeof(d));\n");
-  fprintf(fp, "  d.elem_size = sizeof(struct %s);\n", type);
+  fprintf(fp, "  d.elem_size = sizeof(%s %s);\n", prefix, type);
   fprintf(fp, "  d.init_elem = NULL;\n");
-  fprintf(fp, "  d.elem_from_buf = %s_from_json_v;\n", type);
+  fprintf(fp, "  d.elem_from_buf = %s;\n", extractor);
   fprintf(fp, "  d.ntl_recipient_p= (void***)p;\n");
   fprintf(fp, "  extract_ntl_from_json2(str, len, &d);\n");
   fprintf(fp, "}\n\n");
 
-  fprintf(fp, "size_t %s_list_to_json(char *str, size_t len, struct %s **p)\n",
-          type, type);
+  fprintf(fp, "size_t %s_list_to_json(char *str, size_t len, %s %s **p)\n",
+          type, prefix, type);
   fprintf(fp, "{\n");
-  fprintf(fp, "  return ntl_to_buf(str, len, (void **)p, NULL, %s_to_json_v);\n",
-          type);
+  fprintf(fp, "  return ntl_to_buf(str, len, (void **)p, NULL, %s);\n",
+          injector);
   fprintf(fp, "}\n");
 }
 
@@ -1808,81 +1786,107 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
     fprintf(fp, "};\n");
 }
 
-static void gen_wrapper(FILE *fp, struct jc_struct *s)
+static void gen_wrapper(FILE *fp, struct jc_def *d)
 {
-  char *t = ns_to_symbol_name(s->name);
+  char *t = ns_to_symbol_name(d->name);
 
-  fprintf(fp, "void %s_cleanup_v(void *p) {\n"
-              "  %s_cleanup((struct %s *)p);\n"
-              "}\n\n", t, t, t);
+  char * prefix;
+  if (d->is_struct) 
+  {
+      prefix = "struct";
+      fprintf(fp, "void %s_cleanup_v(void *p) {\n"
+                  "  %s_cleanup((struct %s *)p);\n"
+                  "}\n\n", t, t, t);
 
-  fprintf(fp, "void %s_init_v(void *p) {\n"
-              "  %s_init((struct %s *)p);\n"
-              "}\n\n", t, t, t);
+      fprintf(fp, "void %s_init_v(void *p) {\n"
+                  "  %s_init((struct %s *)p);\n"
+                  "}\n\n", t, t, t);
 
 
-  fprintf(fp, "void %s_from_json_v(char *json, size_t len, void *pp) {\n"
-              " %s_from_json(json, len, (struct %s**)pp);\n"
-              "}\n\n", t, t, t);
+      fprintf(fp, "void %s_from_json_v(char *json, size_t len, void *pp) {\n"
+                  " %s_from_json(json, len, (struct %s**)pp);\n"
+                  "}\n\n", t, t, t);
 
-  fprintf(fp, "size_t %s_to_json_v(char *json, size_t len, void *p) {\n"
-              "  return %s_to_json(json, len, (struct %s*)p);\n"
-              "}\n\n", t, t, t);
-
+      fprintf(fp, "size_t %s_to_json_v(char *json, size_t len, void *p) {\n"
+                  "  return %s_to_json(json, len, (struct %s*)p);\n"
+                  "}\n\n", t, t, t);
 #if 0
-  fprintf(fp, "size_t %s_to_query_v(char *json, size_t len, void *p) {\n"
-              "  return %s_to_query(json, len, (struct %s*)p);\n"
-              "}\n\n", t, t, t);
+      fprintf(fp, "size_t %s_to_query_v(char *json, size_t len, void *p) {\n"
+                  "  return %s_to_query(json, len, (struct %s*)p);\n"
+                  "}\n\n", t, t, t);
 #endif
+  }
+  else {
+      prefix = "enum";
+  }
 
   fprintf(fp, "void %s_list_free_v(void **p) {\n"
-              "  %s_list_free((struct %s**)p);\n"
-              "}\n\n", t, t, t);
+              "  %s_list_free((%s %s**)p);\n"
+              "}\n\n", t, t, prefix, t);
 
   fprintf(fp, "void %s_list_from_json_v(char *str, size_t len, void *p) {\n"
-              "  %s_list_from_json(str, len, (struct %s ***)p);\n"
-              "}\n\n", t, t, t);
+              "  %s_list_from_json(str, len, (%s %s ***)p);\n"
+              "}\n\n", t, t, prefix, t);
 
   fprintf(fp, "size_t %s_list_to_json_v(char *str, size_t len, void *p){\n"
-              "  return %s_list_to_json(str, len, (struct %s **)p);\n"
-              "}\n\n", t, t, t);
+              "  return %s_list_to_json(str, len, (%s %s **)p);\n"
+              "}\n\n", t, t, prefix, t);
 }
 
-static void gen_forward_fun_declare(FILE *fp, struct jc_struct *s)
+static void gen_forward_fun_declare(FILE *fp, struct jc_def *d)
 {
-  char *t = ns_to_symbol_name(s->name);
+  char *t = ns_to_symbol_name(d->name);
 
-  fprintf(fp, "extern void %s_cleanup_v(void *p);\n", t);
-  fprintf(fp, "extern void %s_cleanup(struct %s *p);\n", t, t);
+  char * prefix;
+  if (d->is_struct) 
+  {
+      prefix = "struct";
 
-  fprintf(fp, "extern void %s_init_v(void *p);\n", t);
-  fprintf(fp, "extern void %s_init(struct %s *p);\n", t, t);
+      fprintf(fp, "extern void %s_cleanup_v(void *p);\n", t);
+      fprintf(fp, "extern void %s_cleanup(struct %s *p);\n", t, t);
 
-  fprintf(fp, "extern void %s_from_json_v(char *json, size_t len, void *pp);\n", t);
-  fprintf(fp, "extern void %s_from_json(char *json, size_t len, struct %s **pp);\n",
-          t, t);
+      fprintf(fp, "extern void %s_init_v(void *p);\n", t);
+      fprintf(fp, "extern void %s_init(struct %s *p);\n", t, t);
 
-  fprintf(fp, "extern size_t %s_to_json_v(char *json, size_t len, void *p);\n", t);
-  fprintf(fp, "extern size_t %s_to_json(char *json, size_t len, struct %s *p);\n",
-          t, t);
+      fprintf(fp, "extern void %s_from_json_v(char *json, size_t len, void *pp);\n", t);
+      fprintf(fp, "extern void %s_from_json(char *json, size_t len, struct %s **pp);\n",
+              t, t);
 
-  fprintf(fp, "extern size_t %s_to_query_v(char *json, size_t len, void *p);\n", t);
-  fprintf(fp, "extern size_t %s_to_query(char *json, size_t len, struct %s *p);\n",
-          t, t);
+      fprintf(fp, "extern size_t %s_to_json_v(char *json, size_t len, void *p);\n", t);
+      fprintf(fp, "extern size_t %s_to_json(char *json, size_t len, struct %s *p);\n",
+              t, t);
+
+      fprintf(fp, "extern size_t %s_to_query_v(char *json, size_t len, void *p);\n", t);
+      fprintf(fp, "extern size_t %s_to_query(char *json, size_t len, struct %s *p);\n",
+              t, t);
+  }
+  else {
+      prefix = "enum";
+      char *t_alias = NULL;
+      if (d->typedef_name)
+        t_alias = ns_to_symbol_name(d->typedef_name);
+
+      if (t_alias) {
+        fprintf(fp, "extern char* %s_print(%s);\n", t_alias, t_alias);
+        fprintf(fp, "extern %s %s_eval(char*);\n", t_alias, t_alias);
+      }
+      else {
+        fprintf(fp, "extern char* %s_print(enum %s);\n", t, t);
+        fprintf(fp, "extern enum %s %s_eval(char*);\n", t, t);
+      }
+  }
 
   fprintf(fp, "extern void %s_list_free_v(void **p);\n", t);
-  fprintf(fp, "extern void %s_list_free(struct %s **p);\n", t, t);
+  fprintf(fp, "extern void %s_list_free(%s %s **p);\n", t, prefix, t);
 
   fprintf(fp, "extern void %s_list_from_json_v(char *str, size_t len, void *p);\n", t);
-  fprintf(fp, "extern void %s_list_from_json(char *str, size_t len, struct %s ***p);\n",
-          t, t);
+  fprintf(fp, "extern void %s_list_from_json(char *str, size_t len, %s %s ***p);\n", t, prefix, t);
 
   fprintf(fp, "extern size_t %s_list_to_json_v(char *str, size_t len, void *p);\n", t);
-  fprintf(fp, "extern size_t %s_list_to_json(char *str, size_t len, struct %s **p);\n",
-          t,t);
+  fprintf(fp, "extern size_t %s_list_to_json(char *str, size_t len, %s %s **p);\n", t, prefix, t);
 }
 
-static void gen_typedef (FILE *fp, struct jc_struct *s)
+static void gen_typedef (FILE *fp)
 {
   fprintf(fp, "typedef void (*vfvp)(void *);\n");
   fprintf(fp, "typedef void (*vfcpsvp)(char *, size_t, void *);\n");
@@ -1924,16 +1928,16 @@ static void gen_struct_all(FILE *fp, struct jc_def *d, name_t **ns)
       gen_struct(fp, s);
       break;
   case FILE_FUN_DECLARATION:
-      gen_forward_fun_declare(fp, s);
+      gen_forward_fun_declare(fp, d);
       break;
   case FILE_HEADER: 
   case FILE_DECLARATION:
       gen_struct(fp, s);
-      gen_forward_fun_declare(fp, s);
+      gen_forward_fun_declare(fp, d);
       break;
   case FILE_SINGLE_FILE:
       gen_struct (fp, s);
-      gen_forward_fun_declare(fp, s);
+      gen_forward_fun_declare(fp, d);
 
       gen_from_json(fp, s);
       fprintf(fp, "\n");
@@ -1948,11 +1952,11 @@ static void gen_struct_all(FILE *fp, struct jc_def *d, name_t **ns)
       fprintf(fp, "\n");
 
       // boilerplate
-      gen_typedef(fp, s);
-      gen_wrapper(fp, s);
+      gen_typedef(fp);
+      gen_wrapper(fp, d);
       gen_cleanup(fp, s);
       fprintf(fp, "\n");
-      gen_default(fp, s);
+      gen_default(fp, d);
       fprintf(fp, "\n");
       break;
   default:
@@ -1969,12 +1973,12 @@ static void gen_struct_all(FILE *fp, struct jc_def *d, name_t **ns)
       fprintf(fp, "\n");
 
       // boilerplate
-      gen_typedef(fp, s);
-      gen_wrapper(fp, s);
+      gen_typedef(fp);
+      gen_wrapper(fp, d);
       fprintf(fp, "\n");
       gen_cleanup(fp, s);
       fprintf(fp, "\n");
-      gen_default(fp, s);
+      gen_default(fp, d);
       fprintf(fp, "\n");
       break;
   }
