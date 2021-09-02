@@ -46,8 +46,8 @@ static const char SPECS_DEPS_H[] =
  *              (<field-type>| "copy_json_value":true)
  *              <field-loc>?
  *              "comment"?:<string>
- *              "default_value"?:<string>|<bool>|<number>
  *              "inject_if_not"?:<string>|<bool>|<number>|null
+ *              "todo"?:<bool>
  *            }
  *
  *
@@ -55,6 +55,7 @@ static const char SPECS_DEPS_H[] =
  *                              "int_alias"? : <string>,
  *                              "dec"?:("ntl"|"*"|"[<string>]"),
  *                              "converter"?:<string>,
+ *                              "default_value"?:<string>|<bool>|<number>
  *                            }
  *
  *
@@ -266,13 +267,34 @@ struct decor {
   char * value;
 };
 
+enum type_opcode {
+  TYPE_UNDEFINED = 0,
+  TYPE_RAW_JSON,
+  TYPE_NULL,
+  TYPE_EMPTY_STR,
+  TYPE_STR,
+  TYPE_BOOL,
+  TYPE_INT,
+  TYPE_DOUBLE
+};
+
+struct type_value {
+  enum type_opcode opcode;
+  union {
+    uint64_t ival;
+    double dval;
+    char *sval;
+  } _;
+  char *token; // will be used for conversion
+};
+
 struct jc_type {
   char *base;
   char *int_alias; // use for enum type names that are represented as int
-  char *json_type; // string, number, bool, object, array
   struct decor decor;
   char *converter;
   bool nullable;
+  struct type_value default_value;
 };
 
 static void
@@ -288,36 +310,14 @@ enum loc {
   LOC_IN_URL
 };
 
-enum inject_opcode {
-  INJECT_ALWAYS = 0,
-  INJECT_IF_NOT_NULL,
-  INJECT_IF_NOT_EMPTY_STR,
-  INJECT_IF_NOT_STR,
-  INJECT_IF_NOT_BOOL,
-  INJECT_IF_NOT_INT,
-  INJECT_IF_NOT_DOUBLE
-};
-
-struct inject_condition {
-  enum inject_opcode opcode;
-  union {
-    uint64_t ival;
-    double dval;
-    char *sval;
-  } _;
-  char *string;
-};
-
-
 struct jc_field {
+  struct jc_type type;
+  struct type_value inject_condition;
   struct line_and_column lnc;
   bool todo;
   char *name;
-  //char *c_name;
   char *json_key;
-  struct jc_type type;
   enum loc loc;
-  struct inject_condition inject_condition;
   char *comment;
   char spec[512];
   bool option;
@@ -513,22 +513,27 @@ field_from_json(char *json, size_t size, void *x)
 {
   struct jc_field *p = (struct jc_field *)x;
   bool has_inject_if_not = false;
-  struct sized_buffer t = {0};
+  struct sized_buffer t_inject_if_not = {0};
+  struct sized_buffer t_default_value = {0};
 
-  //bool copy_json_value = false;
+#if 0
+  bool copy_json_value = false;
+#endif
 
   size_t s = json_extract(json, size,
                           "(name):?s,"
                           "(name):lnc,"
                           "(todo):b,"
                           "(json_key):?s,"
-                          // "(type):?s,"
+#if 0
+                          "(type):?s,"
+#endif
                           "(type.base):?s,"
                           "(type.int_alias):?s,"
-                          "(type.json_type):?s,"
                           "(type.dec):F,"
                           "(type.converter):?s,"
                           "(type.nullable):b,"
+                          "(type.default_value):T,"
                           "(option):b,"
                           "(inject_if_not):key,"
                           "(inject_if_not):T,"
@@ -538,16 +543,18 @@ field_from_json(char *json, size_t size, void *x)
                           &p->lnc,
                           &p->todo,
                           &p->json_key,
-                          //&copy_json_value,
+#if 0
+                          &copy_json_value,
+#endif
                           &p->type.base,
                           &p->type.int_alias,
-                          &p->type.json_type,
                           decor_from_json, &p->type.decor,
                           &p->type.converter,
                           &p->type.nullable,
+                          &t_default_value,
                           &p->option,
                           &has_inject_if_not,
-                          &t,
+                          &t_inject_if_not,
                           loc_from_json, &p->loc,
                           &p->comment);
 
@@ -555,22 +562,27 @@ field_from_json(char *json, size_t size, void *x)
   adjust_lnc(json, &p->lnc);
 
   if (has_inject_if_not) {
-    if (t.size == 0) {
-      p->inject_condition.opcode = INJECT_IF_NOT_EMPTY_STR;
+    if (t_inject_if_not.size == 0) {
+      p->inject_condition.opcode = TYPE_EMPTY_STR;
     }
-    else if (strlen("null") == t.size
-             && strncmp("null", t.start, t.size) == 0) {
-      p->inject_condition.opcode = INJECT_IF_NOT_NULL;
+    else if (4 == t_inject_if_not.size 
+             && 0 == strncmp("null", t_inject_if_not.start, t_inject_if_not.size)) 
+    {
+      p->inject_condition.opcode = TYPE_NULL;
     }
-    else {
-      // we will convert this to actual type later
-      p->inject_condition.opcode = INJECT_IF_NOT_STR;
-      char *str = malloc(t.size + 1);
-      strncpy(str, t.start, t.size);
-      str[t.size] = 0;
-      p->inject_condition.string = str;
+    else { // we will convert this to actual type later
+      p->inject_condition.opcode = TYPE_RAW_JSON;
+      asprintf(&p->inject_condition.token, 
+          "%.*s", (int)t_inject_if_not.size, t_inject_if_not.start);
     }
   }
+
+  if (t_default_value.size != 0) {
+    p->type.default_value.opcode = TYPE_RAW_JSON;
+    asprintf(&p->type.default_value.token,
+        "%.*s", (int)t_default_value.size, t_default_value.start);
+  }
+
   return s;
 }
 
@@ -1007,10 +1019,18 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
   if (strcmp(f->type.base, "int") == 0) {
     act->extractor = "d";
     act->injector = "d";
-    //act->c_type = f->type.int_alias ? f->type.int_alias : "int";
-    if (f->inject_condition.opcode == INJECT_IF_NOT_STR) {
-      f->inject_condition.opcode = INJECT_IF_NOT_INT;
-      f->inject_condition._.ival = (uint64_t)strtol(f->inject_condition.string,
+#if 0
+    act->c_type = f->type.int_alias ? f->type.int_alias : "int";
+#endif
+    if (f->inject_condition.opcode == TYPE_RAW_JSON) {
+      f->inject_condition.opcode = TYPE_INT;
+      f->inject_condition._.ival = (uint64_t)strtol(f->inject_condition.token,
+                                                    &xend, 10);
+      // @todo check xend
+    }
+    if (f->type.default_value.opcode == TYPE_RAW_JSON) {
+      f->type.default_value.opcode = TYPE_INT;
+      f->type.default_value._.ival = (uint64_t)strtol(f->type.default_value.token,
                                                     &xend, 10);
       // @todo check xend
     }
@@ -1019,9 +1039,15 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
     act->extractor = "s_as_u64";
     act->injector = "s_as_u64";
     act->c_type = "uint64_t";
-    if (f->inject_condition.opcode == INJECT_IF_NOT_STR) {
-      f->inject_condition.opcode = INJECT_IF_NOT_INT;
-      f->inject_condition._.ival = (uint64_t)strtoll(f->inject_condition.string,
+    if (f->inject_condition.opcode == TYPE_RAW_JSON) {
+      f->inject_condition.opcode = TYPE_INT;
+      f->inject_condition._.ival = (uint64_t)strtoull(f->inject_condition.token,
+                                                     &xend, 10);
+      // @todo check xend
+    }
+    if (f->type.default_value.opcode == TYPE_RAW_JSON) {
+      f->type.default_value.opcode = TYPE_INT;
+      f->type.default_value._.ival = (uint64_t)strtoull(f->type.default_value.token,
                                                      &xend, 10);
       // @todo check xend
     }
@@ -1033,9 +1059,15 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
     if (f->type.int_alias) {
       act->c_type = f->type.int_alias;
     }
-    if (f->inject_condition.opcode == INJECT_IF_NOT_STR) {
-      f->inject_condition.opcode = INJECT_IF_NOT_INT;
-      f->inject_condition._.ival = (uint64_t)strtoll(f->inject_condition.string,
+    if (f->inject_condition.opcode == TYPE_RAW_JSON) {
+      f->inject_condition.opcode = TYPE_INT;
+      f->inject_condition._.ival = (uint64_t)strtoll(f->inject_condition.token,
+                                                     &xend, 10);
+      // @todo check xend
+    }
+    if (f->type.default_value.opcode == TYPE_RAW_JSON) {
+      f->type.default_value.opcode = TYPE_INT;
+      f->type.default_value._.ival = (uint64_t)strtoll(f->type.default_value.token,
                                                      &xend, 10);
       // @todo check xend
     }
@@ -1048,16 +1080,28 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
     act->extractor = "b";
     act->injector = "b";
     act->c_type = "bool";
-    if (f->inject_condition.opcode == INJECT_IF_NOT_STR) {
-      f->inject_condition.opcode = INJECT_IF_NOT_BOOL;
-      if (strcmp("true", f->inject_condition.string) == 0) {
+    if (f->inject_condition.opcode == TYPE_RAW_JSON) {
+      f->inject_condition.opcode = TYPE_BOOL;
+      if (strcmp("true", f->inject_condition.token) == 0) {
         f->inject_condition._.sval = "true";
       }
-      else if (strcmp("false", f->inject_condition.string) == 0) {
+      else if (strcmp("false", f->inject_condition.token) == 0) {
         f->inject_condition._.sval = "false";
       }
       else {
-        ERR("%s is not a bool value\n", f->inject_condition.string);
+        ERR("%s is not a bool value\n", f->inject_condition.token);
+      }
+    }
+    if (f->type.default_value.opcode == TYPE_RAW_JSON) {
+      f->type.default_value.opcode = TYPE_BOOL;
+      if (strcmp("true", f->type.default_value.token) == 0) {
+        f->type.default_value._.sval = "true";
+      }
+      else if (strcmp("false", f->type.default_value.token) == 0) {
+        f->type.default_value._.sval = "false";
+      }
+      else {
+        ERR("%s is not a bool value\n", f->type.default_value.token);
       }
     }
   }
@@ -1065,9 +1109,14 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
     act->extractor = "f";
     act->injector = "f";
     act->c_type = "float";
-    if (f->inject_condition.opcode == INJECT_IF_NOT_STR) {
-      f->inject_condition.opcode = INJECT_IF_NOT_DOUBLE;
-      f->inject_condition._.dval = strtod(f->inject_condition.string, &xend);
+    if (f->inject_condition.opcode == TYPE_RAW_JSON) {
+      f->inject_condition.opcode = TYPE_DOUBLE;
+      f->inject_condition._.dval = strtod(f->inject_condition.token, &xend);
+      // @todo check xend
+    }
+    if (f->type.default_value.opcode == TYPE_RAW_JSON) {
+      f->type.default_value.opcode = TYPE_DOUBLE;
+      f->type.default_value._.dval = strtod(f->type.default_value.token, &xend);
       // @todo check xend
     }
   }
@@ -1096,13 +1145,26 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
       act->pre_dec = "";
       act->need_double_quotes = true;
 
-      if (f->inject_condition.opcode == INJECT_IF_NOT_STR) {
+      if (f->inject_condition.opcode == TYPE_RAW_JSON) {
         if (strcmp(c->converted_builtin_type, "uint64_t") == 0) {
-          f->inject_condition.opcode = INJECT_IF_NOT_INT;
-          f->inject_condition._.ival = (uint64_t) strtoll(
-            f->inject_condition.string,
-            &xend, 10);
+          f->inject_condition.opcode = TYPE_INT;
+          f->inject_condition._.ival = \
+            (uint64_t)strtoll(f->inject_condition.token, &xend, 10);
           // @todo check xend
+        }
+        else {
+          f->inject_condition.opcode = TYPE_STR;
+        }
+      }
+      if (f->type.default_value.opcode == TYPE_RAW_JSON) {
+        if (strcmp(c->converted_builtin_type, "uint64_t") == 0) {
+          f->type.default_value.opcode = TYPE_INT;
+          f->type.default_value._.ival = \
+            (uint64_t)strtoll(f->type.default_value.token, &xend, 10);
+          // @todo check xend
+        }
+        else {
+          f->type.default_value.opcode = TYPE_STR;
         }
       }
     }
@@ -1244,6 +1306,31 @@ static void emit_field_init(void *cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
 
   if (act.todo) return;
+
+  switch(f->type.default_value.opcode) {
+  case TYPE_RAW_JSON:
+      ERR("(Internal Error) Type is TYPE_RAW_JSON, but should have been converted to a primitive");
+      break;
+  case TYPE_UNDEFINED: // do nothing
+  case TYPE_EMPTY_STR:
+  default:
+      break;
+  case TYPE_NULL:
+      fprintf(fp, "  p->%s = NULL;\n", act.c_name);
+      break;
+  case TYPE_BOOL:
+      fprintf(fp, "  p->%s = %s;\n", act.c_name, f->type.default_value._.sval);
+      break;
+  case TYPE_INT:
+  case TYPE_DOUBLE:
+      fprintf(fp, "  p->%s = %s;\n", act.c_name, f->type.default_value.token);
+      break;
+      fprintf(fp, "  p->%s = %s;\n", act.c_name, f->type.default_value.token);
+      break;
+  case TYPE_STR:
+      fprintf(fp, "  p->%s = strdup(%s);\n", act.c_name, f->type.default_value.token);
+      break;
+  }
 }
 
 static void gen_init (FILE *fp, struct jc_struct *s)
@@ -1445,40 +1532,45 @@ static void emit_inject_setting(void *cxt, FILE *fp, struct jc_field *f)
   int i = *(int *)cxt;
 
   switch(f->inject_condition.opcode) {
-  case INJECT_ALWAYS:
+  case TYPE_RAW_JSON:
+      ERR("(Internal Error) Type is TYPE_RAW_JSON, but should have been converted to a primitive");
+      break;
+  default:
+      break;
+  case TYPE_UNDEFINED:
       fprintf(fp, "  p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-  case INJECT_IF_NOT_NULL:
+  case TYPE_NULL:
       fprintf(fp, "  if (p->%s != NULL)\n", act.c_name);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-  case INJECT_IF_NOT_BOOL:
+  case TYPE_BOOL:
       fprintf(fp, "  if (p->%s != %s)\n", act.c_name,
               f->inject_condition._.sval);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-  case INJECT_IF_NOT_INT:
+  case TYPE_INT:
       fprintf(fp, "  if (p->%s != %s)\n", act.c_name,
-              f->inject_condition.string);
+              f->inject_condition.token);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-  case INJECT_IF_NOT_DOUBLE:
+  case TYPE_DOUBLE:
       fprintf(fp, "  if (p->%s != %s)\n", act.c_name,
-              f->inject_condition.string);
+              f->inject_condition.token);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-  case INJECT_IF_NOT_STR:
+  case TYPE_STR:
       fprintf(fp, "  if (strcmp(p->%s, %s) != 0)\n", act.c_name,
-              f->inject_condition.string);
+              f->inject_condition.token);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-  case INJECT_IF_NOT_EMPTY_STR:
+  case TYPE_EMPTY_STR:
       if (f->type.decor.tag == DEC_POINTER)
         fprintf(fp, "  if (p->%s && *p->%s)\n", act.c_name, act.c_name);
       else
