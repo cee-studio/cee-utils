@@ -46,8 +46,8 @@ static const char SPECS_DEPS_H[] =
  *              (<field-type>| "copy_json_value":true)
  *              <field-loc>?
  *              "comment"?:<string>
- *              "lazy_load"?:<bool>
- *              "lazy_init"?:<bool>
+ *              "default_value"?:<string>|<bool>|<number>
+ *              "inject_if_not"?:<string>|<bool>|<number>|null
  *            }
  *
  *
@@ -55,7 +55,6 @@ static const char SPECS_DEPS_H[] =
  *                              "int_alias"? : <string>,
  *                              "dec"?:("ntl"|"*"|"[<string>]"),
  *                              "converter"?:<string>,
- *                              "inject_if_not"?:<string>|<bool>|<number>|null,
  *                            }
  *
  *
@@ -320,7 +319,6 @@ struct jc_field {
   enum loc loc;
   struct inject_condition inject_condition;
   char *comment;
-  bool lazy_init;
   char spec[512];
   bool option;
   bool copy_json_value;
@@ -534,7 +532,6 @@ field_from_json(char *json, size_t size, void *x)
                           "(option):b,"
                           "(inject_if_not):key,"
                           "(inject_if_not):T,"
-                          "(lazy_init):b,"
                           "(loc):F,"
                           "(comment):?s",
                           &p->name,
@@ -551,7 +548,6 @@ field_from_json(char *json, size_t size, void *x)
                           &p->option,
                           &has_inject_if_not,
                           &t,
-                          &p->lazy_init,
                           loc_from_json, &p->loc,
                           &p->comment);
 
@@ -1248,11 +1244,6 @@ static void emit_field_init(void *cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
 
   if (act.todo) return;
-
-  if (act.alloc && !f->lazy_init)
-    fprintf (fp, "  p->%s = malloc(sizeof *p->%s);\n"
-                 "  %s(p->%s);\n", 
-                 act.c_name, act.c_name, act.alloc, act.c_name);
 }
 
 static void gen_init (FILE *fp, struct jc_struct *s)
@@ -1413,9 +1404,11 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
   fprintf(fp, "{\n");
   fprintf(fp, "  static size_t ret=0; // used for debugging\n");
   fprintf(fp, "  size_t r=0;\n");
-  fprintf(fp, "  if (!*pp) *pp = calloc(1, sizeof **pp);\n");
+  fprintf(fp, "  if (!*pp) *pp = malloc(sizeof **pp);\n");
   fprintf(fp, "  struct %s *p = *pp;\n", t);
+  fprintf(fp, "  %s_init(p);\n", t);
   fprintf(fp, "  r=json_extract(json, len, \n");
+
   for (int i = 0; s->fields && s->fields[i]; i++) {
     if (emit_spec)
       emit_field_spec(NULL, fp, s->fields[i]);
@@ -1441,12 +1434,6 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
     " sizeof(p->__M.record_null));\n");
   fprintf(fp, "  ret = r;\n");
   fprintf(fp, "}\n");
-
-  if (is_disabled) {
-    char *f = NULL;
-    asprintf(&f, "%s_from_json", t);
-    free(f);
-  }
 }
 
 static void emit_inject_setting(void *cxt, FILE *fp, struct jc_field *f)
@@ -1457,48 +1444,47 @@ static void emit_inject_setting(void *cxt, FILE *fp, struct jc_field *f)
 
   int i = *(int *)cxt;
 
-  switch(f->inject_condition.opcode)
-  {
-    case INJECT_ALWAYS:
+  switch(f->inject_condition.opcode) {
+  case INJECT_ALWAYS:
       fprintf(fp, "  p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-    case INJECT_IF_NOT_NULL:
+  case INJECT_IF_NOT_NULL:
       fprintf(fp, "  if (p->%s != NULL)\n", act.c_name);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-    case INJECT_IF_NOT_BOOL:
+  case INJECT_IF_NOT_BOOL:
       fprintf(fp, "  if (p->%s != %s)\n", act.c_name,
               f->inject_condition._.sval);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-    case INJECT_IF_NOT_INT:
+  case INJECT_IF_NOT_INT:
       fprintf(fp, "  if (p->%s != %s)\n", act.c_name,
               f->inject_condition.string);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-    case INJECT_IF_NOT_DOUBLE:
+  case INJECT_IF_NOT_DOUBLE:
       fprintf(fp, "  if (p->%s != %s)\n", act.c_name,
               f->inject_condition.string);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-    case INJECT_IF_NOT_STR:
+  case INJECT_IF_NOT_STR:
       fprintf(fp, "  if (strcmp(p->%s, %s) != 0)\n", act.c_name,
               f->inject_condition.string);
       fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
-    case INJECT_IF_NOT_EMPTY_STR:
+  case INJECT_IF_NOT_EMPTY_STR:
       if (f->type.decor.tag == DEC_POINTER)
-        fprintf(fp, "  if (p->%s != NULL && strlen(p->%s) != 0)\n",
-                act.c_name, act.c_name);
+        fprintf(fp, "  if (p->%s && *p->%s)\n", act.c_name, act.c_name);
       else
-        fprintf(fp, "  if (strlen(p->%s) != 0)\n", act.c_name);
-      fprintf(fp, "    p->__M.arg_switches[%d] = %sp->%s;\n",
+        fprintf(fp, "  if (*p->%s)\n", act.c_name);
+
+      fprintf(fp,   "    p->__M.arg_switches[%d] = %sp->%s;\n",
               i, act.inject_arg_decor, act.c_name);
       break;
   }
