@@ -59,7 +59,7 @@ static const char SPECS_DEPS_H[] =
  *                            }
  *
  *
- * <field-loc>   :=  "loc"  : ("json" | "query" | "body" | "url)
+ * <field-loc>   :=  "loc"  : ("json" | "query" | "body" | "url" | "multipart")
  *
  *
  * <enum> := "enum" :<string>, "typedef" : <string>, "items": [ <items>+ ]
@@ -307,7 +307,8 @@ enum loc {
   LOC_IN_JSON = 0,  // this has to be zero as the absence means LOC_IN_JSON
   LOC_IN_QUERY,
   LOC_IN_BODY,
-  LOC_IN_URL
+  LOC_IN_URL,
+  LOC_IN_MULTIPART
 };
 
 struct jc_field {
@@ -479,6 +480,9 @@ loc_from_json(char *json, size_t size, enum loc *p)
   }
   else if (3 == size && 0 == strncmp(json, "url", size)) {
     *p = LOC_IN_URL;
+  }
+  else if (9 == size && 0 == strncmp(json, "multipart", size)) {
+    *p = LOC_IN_MULTIPART;
   }
   return 1;
 }
@@ -1311,6 +1315,14 @@ static void gen_init (FILE *fp, struct jc_struct *s)
   fprintf(fp, "}\n");
 }
 
+static bool is_disabled_method(struct jc_def *d, char *name)
+{
+  for (int i = 0; d->disable_methods && d->disable_methods[i]; i++)
+    if (strcmp(name, (char *)d->disable_methods[i]) == 0)
+      return true;
+  return false;
+}
+
 static void gen_default(FILE *fp, struct jc_def *d)
 {
   char * type = ns_to_symbol_name(d->name);
@@ -1335,24 +1347,28 @@ static void gen_default(FILE *fp, struct jc_def *d)
   fprintf(fp, "  ntl_free((void**)p, %s);\n", cleanup);
   fprintf(fp, "}\n\n");
 
-  fprintf(fp, "void %s_list_from_json(char *str, size_t len, %s %s ***p)\n",
-          type, prefix, type);
-  fprintf(fp, "{\n");
-  fprintf(fp, "  struct ntl_deserializer d;\n");
-  fprintf(fp, "  memset(&d, 0, sizeof(d));\n");
-  fprintf(fp, "  d.elem_size = sizeof(%s %s);\n", prefix, type);
-  fprintf(fp, "  d.init_elem = NULL;\n");
-  fprintf(fp, "  d.elem_from_buf = %s;\n", extractor);
-  fprintf(fp, "  d.ntl_recipient_p= (void***)p;\n");
-  fprintf(fp, "  extract_ntl_from_json2(str, len, &d);\n");
-  fprintf(fp, "}\n\n");
+  if (!is_disabled_method(d, "from_json")) {
+    fprintf(fp, "void %s_list_from_json(char *str, size_t len, %s %s ***p)\n",
+            type, prefix, type);
+    fprintf(fp, "{\n");
+    fprintf(fp, "  struct ntl_deserializer d;\n");
+    fprintf(fp, "  memset(&d, 0, sizeof(d));\n");
+    fprintf(fp, "  d.elem_size = sizeof(%s %s);\n", prefix, type);
+    fprintf(fp, "  d.init_elem = NULL;\n");
+    fprintf(fp, "  d.elem_from_buf = %s;\n", extractor);
+    fprintf(fp, "  d.ntl_recipient_p= (void***)p;\n");
+    fprintf(fp, "  extract_ntl_from_json2(str, len, &d);\n");
+    fprintf(fp, "}\n\n");
+  }
 
-  fprintf(fp, "size_t %s_list_to_json(char *str, size_t len, %s %s **p)\n",
-          type, prefix, type);
-  fprintf(fp, "{\n");
-  fprintf(fp, "  return ntl_to_buf(str, len, (void **)p, NULL, %s);\n",
-          injector);
-  fprintf(fp, "}\n");
+  if (!is_disabled_method(d, "to_json")) {
+    fprintf(fp, "size_t %s_list_to_json(char *str, size_t len, %s %s **p)\n",
+            type, prefix, type);
+    fprintf(fp, "{\n");
+    fprintf(fp, "  return ntl_to_buf(str, len, (void **)p, NULL, %s);\n",
+            injector);
+    fprintf(fp, "}\n");
+  }
 }
 
 static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
@@ -1436,35 +1452,20 @@ static void emit_json_extractor_arg(void *cxt, FILE *fp, struct jc_field *f)
             act.extract_arg_decor, act.c_name);
 }
 
-static bool is_disabled_method(struct jc_struct *s, char *name)
-{
-  for (int i = 0; s->disable_methods && s->disable_methods[i]; i++)
-    if (strcmp(name, (char *)s->disable_methods[i]) == 0)
-      return true;
-  return false;
-}
-
 static void gen_from_json(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
 
-  bool emit_spec = true, is_disabled = false;
-  char * suffix = "";
-
-  if (is_disabled_method(s, "from_json")) {
-    emit_spec = false;
-    suffix = "_disabled";
-    is_disabled = true;
-  }
-
-  if (is_disabled) {
+  if (is_disabled_method((struct jc_def*)s, "from_json")) {
     fprintf(fp, "\n/* This method is disabled at %s:%d:%d */\n",
             spec_name,
             s->disable_methods_lnc.line,
             s->disable_methods_lnc.column);
+    return;
   }
-  fprintf(fp, "void %s_from_json%s(char *json, size_t len, struct %s **pp)\n",
-          t, suffix, t);
+
+  fprintf(fp, "void %s_from_json(char *json, size_t len, struct %s **pp)\n",
+          t, t);
 
   fprintf(fp, "{\n");
   fprintf(fp, "  static size_t ret=0; // used for debugging\n");
@@ -1475,8 +1476,9 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
   fprintf(fp, "  r=json_extract(json, len, \n");
 
   for (int i = 0; s->fields && s->fields[i]; i++) {
-    if (emit_spec)
-      emit_field_spec(NULL, fp, s->fields[i]);
+    if (s->fields[i]->loc != LOC_IN_JSON)
+      continue;
+    emit_field_spec(NULL, fp, s->fields[i]);
     emit_json_extractor(NULL, fp, s->fields[i]);
   }
 
@@ -1485,8 +1487,9 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
   fprintf(fp, "                \"@record_null\",\n");
 
   for (int i = 0; s->fields && s->fields[i]; i++) {
-    if (emit_spec)
-      emit_field_spec(NULL, fp, s->fields[i]);
+    if (s->fields[i]->loc != LOC_IN_JSON)
+      continue;
+    emit_field_spec(NULL, fp, s->fields[i]);
     emit_json_extractor_arg(NULL, fp, s->fields[i]);
   }
 
@@ -1608,39 +1611,35 @@ static void emit_json_injector_arg(void * cxt, FILE *fp, struct jc_field *f)
 static void gen_to_json(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
-  bool emit_spec = true, is_disabled = false;
-  char * suffix = "";
 
-  if (is_disabled_method(s, "to_json")) {
-    emit_spec = false;
-    is_disabled = true;
-    suffix = "_disabled";
-  }
-
-  if (is_disabled) {
+  if (is_disabled_method((struct jc_def*)s, "to_json")) {
     fprintf(fp, "\n/* This method is disabled at %s:%d:%d */\n",
             spec_name,
             s->disable_methods_lnc.line,
             s->disable_methods_lnc.column);
+    return;
   }
-  fprintf(fp, "size_t %s_to_json%s(char *json, size_t len, struct %s *p)\n",
-          t, suffix, t);
+
+  fprintf(fp, "size_t %s_to_json(char *json, size_t len, struct %s *p)\n",
+          t, t);
   fprintf(fp, "{\n");
   fprintf(fp, "  size_t r;\n");
   fprintf(fp, "  %s_use_default_inject_settings(p);\n", t);
   fprintf(fp, "  r=json_inject(json, len, \n");
 
   for (int i = 0; s->fields && s->fields[i]; i++) {
-    if (emit_spec)
-      emit_field_spec(NULL, fp, s->fields[i]);
+    if (s->fields[i]->loc != LOC_IN_JSON)
+      continue;
+    emit_field_spec(NULL, fp, s->fields[i]);
     emit_json_injector(NULL, fp, s->fields[i]);
   }
 
   fprintf(fp, "                \"@arg_switches:b\",\n");
 
   for (int i = 0; s->fields && s->fields[i]; i++) {
-    if (emit_spec)
-      emit_field_spec(NULL, fp, s->fields[i]);
+    if (s->fields[i]->loc != LOC_IN_JSON)
+      continue;
+    emit_field_spec(NULL, fp, s->fields[i]);
     emit_json_injector_arg(NULL, fp, s->fields[i]);
   }
 
@@ -1649,12 +1648,6 @@ static void gen_to_json(FILE *fp, struct jc_struct *s)
     " p->__M.enable_arg_switches);\n");
   fprintf(fp, "  return r;\n");
   fprintf(fp, "}\n");
-
-  if (is_disabled) {
-    char *f = NULL;
-    asprintf(&f, "%s_to_json", t);
-    free(f);
-  }
 }
 
 static void gen_to_query(FILE *fp, struct jc_struct *s)
@@ -1803,18 +1796,16 @@ static void gen_wrapper(FILE *fp, struct jc_def *d)
                   "}\n\n", t, t, t);
 
 
-      fprintf(fp, "void %s_from_json_v(char *json, size_t len, void *pp) {\n"
-                  " %s_from_json(json, len, (struct %s**)pp);\n"
-                  "}\n\n", t, t, t);
-
-      fprintf(fp, "size_t %s_to_json_v(char *json, size_t len, void *p) {\n"
-                  "  return %s_to_json(json, len, (struct %s*)p);\n"
-                  "}\n\n", t, t, t);
-#if 0
-      fprintf(fp, "size_t %s_to_query_v(char *json, size_t len, void *p) {\n"
-                  "  return %s_to_query(json, len, (struct %s*)p);\n"
-                  "}\n\n", t, t, t);
-#endif
+      if (!is_disabled_method(d, "from_json")) {
+        fprintf(fp, "void %s_from_json_v(char *json, size_t len, void *pp) {\n"
+                    " %s_from_json(json, len, (struct %s**)pp);\n"
+                    "}\n\n", t, t, t);
+      }
+      if (!is_disabled_method(d, "to_json")) {
+        fprintf(fp, "size_t %s_to_json_v(char *json, size_t len, void *p) {\n"
+                    "  return %s_to_json(json, len, (struct %s*)p);\n"
+                    "}\n\n", t, t, t);
+      }
   }
   else {
       prefix = "enum";
@@ -1824,13 +1815,16 @@ static void gen_wrapper(FILE *fp, struct jc_def *d)
               "  %s_list_free((%s %s**)p);\n"
               "}\n\n", t, t, prefix, t);
 
-  fprintf(fp, "void %s_list_from_json_v(char *str, size_t len, void *p) {\n"
-              "  %s_list_from_json(str, len, (%s %s ***)p);\n"
-              "}\n\n", t, t, prefix, t);
-
-  fprintf(fp, "size_t %s_list_to_json_v(char *str, size_t len, void *p){\n"
-              "  return %s_list_to_json(str, len, (%s %s **)p);\n"
-              "}\n\n", t, t, prefix, t);
+  if (!is_disabled_method(d, "from_json")) {
+    fprintf(fp, "void %s_list_from_json_v(char *str, size_t len, void *p) {\n"
+                "  %s_list_from_json(str, len, (%s %s ***)p);\n"
+                "}\n\n", t, t, prefix, t);
+  }
+  if (!is_disabled_method(d, "to_json")) {
+    fprintf(fp, "size_t %s_list_to_json_v(char *str, size_t len, void *p){\n"
+                "  return %s_list_to_json(str, len, (%s %s **)p);\n"
+                "}\n\n", t, t, prefix, t);
+  }
 }
 
 static void gen_forward_fun_declare(FILE *fp, struct jc_def *d)
@@ -1848,17 +1842,22 @@ static void gen_forward_fun_declare(FILE *fp, struct jc_def *d)
       fprintf(fp, "extern void %s_init_v(void *p);\n", t);
       fprintf(fp, "extern void %s_init(struct %s *p);\n", t, t);
 
-      fprintf(fp, "extern void %s_from_json_v(char *json, size_t len, void *pp);\n", t);
-      fprintf(fp, "extern void %s_from_json(char *json, size_t len, struct %s **pp);\n",
-              t, t);
+      if (!is_disabled_method(d, "from_json")) {
+        fprintf(fp, "extern void %s_from_json_v(char *json, size_t len, void *pp);\n", t);
+        fprintf(fp, "extern void %s_from_json(char *json, size_t len, struct %s **pp);\n",
+                t, t);
+      }
 
-      fprintf(fp, "extern size_t %s_to_json_v(char *json, size_t len, void *p);\n", t);
-      fprintf(fp, "extern size_t %s_to_json(char *json, size_t len, struct %s *p);\n",
-              t, t);
-
+      if (!is_disabled_method(d, "to_json")) {
+        fprintf(fp, "extern size_t %s_to_json_v(char *json, size_t len, void *p);\n", t);
+        fprintf(fp, "extern size_t %s_to_json(char *json, size_t len, struct %s *p);\n",
+                t, t);
+      }
+#if 0
       fprintf(fp, "extern size_t %s_to_query_v(char *json, size_t len, void *p);\n", t);
       fprintf(fp, "extern size_t %s_to_query(char *json, size_t len, struct %s *p);\n",
               t, t);
+#endif
   }
   else {
       prefix = "enum";
@@ -1879,11 +1878,15 @@ static void gen_forward_fun_declare(FILE *fp, struct jc_def *d)
   fprintf(fp, "extern void %s_list_free_v(void **p);\n", t);
   fprintf(fp, "extern void %s_list_free(%s %s **p);\n", t, prefix, t);
 
-  fprintf(fp, "extern void %s_list_from_json_v(char *str, size_t len, void *p);\n", t);
-  fprintf(fp, "extern void %s_list_from_json(char *str, size_t len, %s %s ***p);\n", t, prefix, t);
+  if (!is_disabled_method(d, "from_json")) {
+    fprintf(fp, "extern void %s_list_from_json_v(char *str, size_t len, void *p);\n", t);
+    fprintf(fp, "extern void %s_list_from_json(char *str, size_t len, %s %s ***p);\n", t, prefix, t);
+  }
 
-  fprintf(fp, "extern size_t %s_list_to_json_v(char *str, size_t len, void *p);\n", t);
-  fprintf(fp, "extern size_t %s_list_to_json(char *str, size_t len, %s %s **p);\n", t, prefix, t);
+  if (!is_disabled_method(d, "to_json")) {
+    fprintf(fp, "extern size_t %s_list_to_json_v(char *str, size_t len, void *p);\n", t);
+    fprintf(fp, "extern size_t %s_list_to_json(char *str, size_t len, %s %s **p);\n", t, prefix, t);
+  }
 }
 
 static void gen_typedef (FILE *fp)
