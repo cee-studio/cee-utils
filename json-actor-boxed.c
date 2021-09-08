@@ -29,19 +29,6 @@ void ja_str_init_v(void *p) {
   ja_str_init((ja_str *)p);
 }
 
-ja_str* ja_str_alloc() {
-  return calloc(1, sizeof(ja_str));
-}
-
-void ja_str_free(ja_str *p) {
-  ja_str_cleanup(p);
-  free(p);
-}
-
-void ja_str_free_v(void *p) {
-  ja_str_free((ja_str *)p);
-}
-
 void ja_str_from_json_v(char *json, size_t len, void *p) {
   ja_str_from_json(json, len, (ja_str *)p);
 }
@@ -62,7 +49,7 @@ size_t ja_str_to_query_v(char *json, size_t len, void *p) {
 }
 
 void ja_str_list_free(ja_str **p) {
-  ntl_free((ntl_t)p, (ntl_free_cb)ja_str_free);
+  ntl_free((ntl_t)p, &ja_str_cleanup_v);
 }
 
 void ja_str_list_free_v(void **p) {
@@ -126,21 +113,6 @@ void ja_u64_init_v(void *p) {
   ja_u64_init((ja_u64 *)p);
 }
 
-ja_u64* ja_u64_alloc() {
-  ja_u64 * x = calloc(1, sizeof(ja_u64));
-  ja_u64_init(x);
-  return x;
-}
-
-void ja_u64_free(ja_u64 *p) {
-  //ja_u64_cleanup(p);
-  //free(p);
-}
-
-void ja_u64_free_v(void *p) {
-  ja_u64_free((ja_u64 *)p);
-}
-
 void ja_u64_from_json_v(char *json, size_t len, void *p) {
   ja_u64_from_json(json, len, (ja_u64 *)p);
 }
@@ -155,7 +127,7 @@ size_t ja_u64_to_query_v(char *json, size_t len, void *p) {
 }
 
 void ja_u64_list_free(ja_u64 **p) {
-  ntl_free((ntl_t)p, (ntl_free_cb)ja_u64_free);
+  ntl_free((ntl_t)p, NULL);
 }
 
 void ja_u64_list_free_v(void **p) {
