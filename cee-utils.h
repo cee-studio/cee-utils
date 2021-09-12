@@ -22,6 +22,7 @@ extern "C" {
 #define STREQ_RETURN_ENUM(enum, str) if(STREQ(#enum, str))return enum
 
 
+char* cee_load_whole_file_fp(FILE *fp, size_t *len);
 char* cee_load_whole_file(const char filename[], size_t *len);
 int cee_dati_from_fjson(
   char filename[], 

@@ -20,29 +20,30 @@
 
 
 char*
-cee_load_whole_file(const char filename[], size_t *len)
+cee_load_whole_file_fp(FILE *fp, size_t *len)
 {
-  size_t f_size = 0;
-  FILE *f = fopen(filename,"rb");
-  VASSERT_S(NULL != f, "%s '%s'\n", strerror(errno), filename);
+  fseek(fp, 0, SEEK_END);
+  long f_size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
 
-  fseek(f, 0, SEEK_END);
-  f_size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char *string = (char *)malloc(f_size);
-  fread(string, 1, f_size, f);
-  fclose(f);
+  char *str = malloc(f_size);
+  fread(str, 1, f_size, fp);
 
   if (len) {
     *len = f_size;
   }
 
-  if (!len) {
-    fprintf(stderr, "%s is empty\n", filename);
-    ABORT();
-  }
-  return string;
+  return str;
+}
+
+char*
+cee_load_whole_file(const char filename[], size_t *len)
+{
+  FILE *fp = fopen(filename,"rb");
+  VASSERT_S(NULL != fp, "%s '%s'\n", strerror(errno), filename);
+  char *str = cee_load_whole_file_fp(fp, len);
+  fclose(fp);
+  return str;
 }
 
 int
