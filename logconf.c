@@ -15,8 +15,6 @@
 
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static size_t g_counter;
-static bool g_first_run = true;
-static pid_t g_main_pid; // initialized at logconf_setup()
 
 
 static int
@@ -30,33 +28,6 @@ get_log_level(char level[])
   if (0 == strcasecmp(level, "FATAL")) return LOG_FATAL;
   ERR("Log level doesn't exist: %s", level);
   return 0;// make compiler happy
-}
-
-void
-logconf_add_id(struct logconf *config, void *addr, const char tag[])
-{
-  if (!config || !addr || IS_EMPTY_STRING(tag)) 
-    return; /* EARLY RETURN */
-
-  for (size_t i=0; i < LOGCONF_MAX_IDS; ++i) {
-    if ( (NULL == config->ids[i].addr) || (addr == config->ids[i].addr) ) {
-      config->ids[i].addr = addr;
-      snprintf(config->ids[i].tag, sizeof(config->ids[i].tag), "%s", tag);
-      return; /* EARLY RETURN */
-    }
-  }
-  ERR("Reach maximum logconf_ids threshold (%d)", LOGCONF_MAX_IDS);
-}
-
-char*
-logconf_tag(struct logconf *config, void *addr)
-{
-  if (config) {
-    for (size_t i=0; i < LOGCONF_MAX_IDS; ++i)
-      if (addr == config->ids[i].addr)
-        return config->ids[i].tag;
-  }
-  return "NO_TAG";
 }
 
 static void
@@ -100,7 +71,6 @@ void
 log_http(
   struct logconf *config, 
   struct loginfo *p_info,
-  void *addr_id,
   char url[],
   struct sized_buffer header,
   struct sized_buffer body,
@@ -110,64 +80,69 @@ log_http(
   size_t counter = ++g_counter;
   pthread_mutex_unlock(&g_lock);
 
-  if (!config || !config->http.f) 
-    return;
+  if (!config || !config->http.f) return;
 
+  // Build 'label' string
   char label[512];
-
   va_list label_args;
   va_start(label_args, label_fmt);
-
   size_t ret = vsnprintf(label, sizeof(label), label_fmt, label_args);
   ASSERT_S(ret < sizeof(label), "Out of bounds write attempt");
-
   va_end(label_args);
 
-  struct loginfo info = {
-    .counter = counter,
-    .tstamp_ms = cee_timestamp_ms()
-  };
-
+  // Get timestamp string
+  uint64_t tstamp_ms = cee_timestamp_ms();
   char timestr[64];
-  cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &info.tstamp_ms);
+  cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &tstamp_ms);
 
+  // Print to output
   fprintf(config->http.f, 
-    "%s [%s #TID%u] - %s - %s\n%.*s%s%.*s\n@@@_%zu_@@@\n",
-    label,
-    logconf_tag(config, addr_id), 
-    (unsigned)pthread_self(),
-    timestr,
+    "%s [%s #TID%u] - %s - %s\n"
+    "%.*s%s%.*s\n"
+    "@@@_%zu_@@@\n",
+// 1st LINE ARGS
+    label, 
+    config->tag, 
+    (unsigned)pthread_self(), 
+    timestr, 
     url,
+// 2nd LINE ARGS
     (int)header.size, header.start,
     header.size ? "\n" : "",
     (int)body.size, body.start,
-    info.counter);
+// 3rd LINE ARGS
+    counter);
+
   fflush(config->http.f);
 
-  if (p_info) *p_info = info;
+  // extract logging info if wanted
+  if (p_info) {
+    *p_info = (struct loginfo){
+      .counter = counter,
+      .tstamp_ms = tstamp_ms
+    };
+  }
 }
 
 void
-logconf_setup(struct logconf *config, const char config_file[])
+logconf_setup(struct logconf *config, const char tag[], FILE* fp)
 {
-  if (IS_EMPTY_STRING(config_file)) {
-    config->http.f = NULL;
-    return; /* EARLY RETURN */
-  }
+  memset(config, 0, sizeof *config);
+
+  int ret = snprintf(config->tag, LOGCONF_TAG_LEN, "%s", tag);
+  ASSERT_S(ret < LOGCONF_TAG_LEN, "Out of bounds write attempt");
+
+  if (!fp) return; /* EARLY RETURN */
+
 
   struct {
     char level[16];
     bool quiet, use_color, overwrite;
     bool http_enable;
-  } logging={0}; // set all as zero
+  } logging={0};
 
-  if (config->contents) {
-    free(config->contents);
-    config->len = 0;
-  }
-
-  config->contents = cee_load_whole_file(config_file, &config->len);
-  json_extract(config->contents, config->len,
+  config->file.start = cee_load_whole_file_fp(fp, &config->file.size);
+  json_extract(config->file.start, config->file.size,
              "(logging.level):.*s"
              "(logging.filename):.*s"
              "(logging.quiet):b"
@@ -187,80 +162,87 @@ logconf_setup(struct logconf *config, const char config_file[])
              &logging.http_enable,
              sizeof(config->http.fname), config->http.fname);
 
-  // child processes must be written to a different file
-  pid_t pid = getpid();
-  if (!g_first_run && pid != g_main_pid) {
-    size_t len;
-
-    len = strlen(config->logger.fname);
-    snprintf(config->logger.fname + len, sizeof(config->logger.fname) - len, "%ld", (long)pid);
-
-    len = strlen(config->http.fname);
-    snprintf(config->http.fname + len, sizeof(config->http.fname) - len, "%ld", (long)pid);
-  }
-
   /* SET LOGGER CONFIGS */
   if (!IS_EMPTY_STRING(config->logger.fname)) {
-    if (g_first_run && logging.overwrite)
-      config->logger.f = fopen(config->logger.fname, "w+");
-    else
-      config->logger.f = fopen(config->logger.fname, "a+");
-    log_add_callback(
+    config->logger.f = fopen(config->logger.fname, logging.overwrite ? "w+" : "a+");
+    ASSERT_S(NULL != config->logger.f, "Could not create logger file");
+
+    _log_add_callback(&config->L,
         logging.use_color ? &log_color_cb : &log_nocolor_cb, 
         config->logger.f, 
         get_log_level(logging.level));
-    ASSERT_S(NULL != config->logger.f, "Could not create logger file");
   }
 
   /* SET HTTP DUMP CONFIGS */
   if (logging.http_enable && !IS_EMPTY_STRING(config->http.fname)) {
-    if (g_first_run && logging.overwrite)
-      config->http.f = fopen(config->http.fname, "w+");
-    else
-      config->http.f = fopen(config->http.fname, "a+");
-    ASSERT_S(NULL != config->http.f, "Could not create dump file");
+    config->http.f = fopen(config->http.fname, logging.overwrite ? "w+" : "a+");
+    ASSERT_S(NULL != config->http.f, "Could not create http logger file");
   }
 
-  if (g_first_run) {
-    g_first_run = false;
-    g_main_pid = getpid();
+  config->pid  = getpid();
 
-    log_set_quiet(true); // disable default log.c callbacks
-    if (logging.quiet) // make sure fatal still prints to stderr
-      log_add_callback(
-          logging.use_color ? &log_color_cb : &log_nocolor_cb, 
-          stderr, 
-          LOG_FATAL);
-    else
-      log_add_callback(
-          logging.use_color ? &log_color_cb : &log_nocolor_cb, 
-          stderr, 
-          get_log_level(logging.level));
+  // disable default log.c callbacks
+  _log_set_quiet(&config->L, true);
+
+  // make sure fatal still prints to stderr
+  _log_add_callback(&config->L,
+      logging.use_color ? &log_color_cb : &log_nocolor_cb, 
+      stderr, 
+      logging.quiet ? LOG_FATAL : get_log_level(logging.level));
+}
+
+void
+logconf_branch(struct logconf *branch, struct logconf *orig, const char tag[]) 
+{
+  pthread_mutex_lock(&g_lock);
+  memcpy(branch, orig, sizeof(struct logconf));
+  pthread_mutex_unlock(&g_lock);
+
+  branch->is_branch = 1;
+  if (tag) {
+    int ret = snprintf(branch->tag, LOGCONF_TAG_LEN, "%s", tag);
+    ASSERT_S(ret < LOGCONF_TAG_LEN, "Out of bounds write attempt");
+  }
+
+  /* To avoid overwritting, child processes files must be unique,
+   *    this will append the unique PID to the end of file names */
+  branch->pid = getpid();
+  if (branch->pid != orig->pid) {
+    size_t len;
+
+    len = strlen(orig->logger.fname);
+    snprintf(branch->logger.fname + len, sizeof(branch->logger.fname) - len, "%ld", (long)branch->pid);
+
+    len = strlen(orig->http.fname);
+    snprintf(branch->http.fname + len, sizeof(branch->http.fname) - len, "%ld", (long)branch->pid);
   }
 }
 
 void
 logconf_cleanup(struct logconf *config)
 {
-  if (config->contents)
-    free(config->contents);
-  if (config->logger.f)
-    fclose(config->logger.f);
-  if (config->http.f)
-    fclose(config->http.f);
+  if (!config->is_branch) {
+    if (config->file.start)
+      free(config->file.start);
+    if (config->logger.f)
+      fclose(config->logger.f);
+    if (config->http.f)
+      fclose(config->http.f);
+  }
+  memset(config, 0, sizeof *config);
 }
 
 struct sized_buffer
 logconf_get_field(struct logconf *config, char *json_field)
 {
   struct sized_buffer field={0};
-  if (!config->len) return field; // empty field
+  if (!config->file.size) return field; // empty field
 
   char fmt[512];
   int ret = snprintf(fmt, sizeof(fmt), "(%s):T", json_field);
   ASSERT_S(ret < sizeof(fmt), "Out of bounds write attempt");
 
-  json_extract(config->contents, config->len, fmt, &field);
+  json_extract(config->file.start, config->file.size, fmt, &field);
 
   return field;
 }
