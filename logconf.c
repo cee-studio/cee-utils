@@ -194,6 +194,11 @@ logconf_setup(struct logconf *config, const char tag[], FILE* fp)
 void
 logconf_branch(struct logconf *branch, struct logconf *orig, const char tag[]) 
 {
+  if (!orig) {
+    logconf_setup(branch, tag, NULL);
+    return; /* EARLY RETURN */
+  }
+
   pthread_mutex_lock(&g_lock);
   memcpy(branch, orig, sizeof(struct logconf));
   pthread_mutex_unlock(&g_lock);
