@@ -25,7 +25,7 @@ int main(void)
   logconf_fatal(&confC, "C");
 
   // print to 'logging.filename' (@todo better function name?)
-  log_http(
+  logconf_http(
     &confA, 
     NULL,
     "TITLE1", 
@@ -33,7 +33,7 @@ int main(void)
     (struct sized_buffer){"BODY_A", 6},
     "%s", "Hello");
 
-  log_http(
+  logconf_http(
     &confB, 
     NULL,
     "TITLE2", 
@@ -41,7 +41,7 @@ int main(void)
     (struct sized_buffer){"BODY_B", 6},
     "%d", 1337);
 
-  log_http(
+  logconf_http(
     &confC, 
     NULL,
     "TITLE3", 
