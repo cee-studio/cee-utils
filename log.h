@@ -69,7 +69,6 @@ int _log_add_callback(log_Logger *L, log_LogFn fn, void *udata, int level);
 int _log_add_fp(log_Logger *L, FILE *fp, int level);
 void _log_log(log_Logger *L, int level, const char *file, int line, const char *fmt, ...);
 
-extern pthread_t main_tid;
 extern const char *level_strings[];
 extern const char *level_colors[];
 extern log_Logger L;

@@ -24,8 +24,6 @@
 
 log_Logger L;
 
-pthread_t main_tid = 0;
-
 const char *level_strings[] = {
   "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"
 };
@@ -38,14 +36,9 @@ static void stdout_callback(log_Event *ev) {
   char buf[16];
   buf[strftime(buf, sizeof(buf), "%H:%M:%S", ev->time)] = '\0';
 #ifdef LOG_USE_COLOR
-  int tid_color;
-  if (main_tid == pthread_self())
-    tid_color = 31;
-  else
-    tid_color = 90;
   fprintf(
-    ev->udata, "%s|\x1b[%dm%010u\x1b[0m %s%-5s\x1b[0m \x1b[90m%s:%d:\x1b[0m ",
-    buf, tid_color, (unsigned)pthread_self(), level_colors[ev->level], level_strings[ev->level],
+    ev->udata, "%s|\x1b[90m%010u\x1b[0m %s%-5s\x1b[0m \x1b[90m%s:%d:\x1b[0m ",
+    buf, (unsigned)pthread_self(), level_colors[ev->level], level_strings[ev->level],
     ev->file, ev->line);
 #else
   fprintf(

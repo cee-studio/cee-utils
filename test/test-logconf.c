@@ -3,76 +3,56 @@
 #include "logconf.h"
 #include "cee-utils.h"
 
-const char bot_config[] =           \
-"{"                                 \
-"  \"logging\": {"                  \
-"    \"level\": \"trace\","         \
-"    \"filename\": \"bot.log\","    \
-"    \"quiet\": true,"              \
-"    \"overwrite\": false,"         \
-"    \"use_color\": true,"          \
-"    \"http_dump\": {"              \
-"      \"enable\": true,"           \
-"      \"filename\": \"dump.json\"" \
-"    }"                             \
-"  }"                               \
-"}";
+#define CONFIG_FILE "test-logconf.json"
 
 int main(void)
 {
+  FILE *fp = fopen(CONFIG_FILE, "rb");
+
   // initialize and link conf to a .config file
-  struct logconf conf={0};
-  logconf_setup(&conf, NULL);
-  conf.contents = strdup(bot_config);
-  conf.len = sizeof(bot_config);
-
-  char *varA = "Hello"; 
-  int varB = 1337;
-  struct { int x; } varC = { .x = 707 };
-
-  // assign tags to variable unique mem address
-  logconf_add_id(&conf, &varA, "INT A");
-  logconf_add_id(&conf, &varB, "CHAR B");
-  logconf_add_id(&conf, &varC, "STRUCT C");
+  struct logconf confA, confB, confC;
+  logconf_setup(&confA, "TAG A", fp);
+  logconf_branch(&confB, &confA, "BRANCH B");
+  logconf_branch(&confC, &confA, "BRANCH C");
 
   // get some JSON field written in .config file
-  struct sized_buffer level = logconf_get_field(&conf, "logging.level");
-  // print the field
-  log_trace("Logging level: %.*s", (int)level.size, level.start);
+  struct sized_buffer level = logconf_get_field(&confA, "logging.level");
+  logconf_trace(&confA, "Logging level: %.*s", (int)level.size, level.start);
 
-  // print the tag by referencing to the variable unique address
-  log_trace("char varA tag: %s", logconf_tag(&conf, &varA));
-  log_trace("char varB tag: %s", logconf_tag(&conf, &varC));
-  log_trace("char varC tag: %s", logconf_tag(&conf, &varB));
+  // test each conf
+  logconf_error(&confA, "A");
+  logconf_debug(&confB, "B");
+  logconf_fatal(&confC, "C");
 
   // print to 'logging.filename' (@todo better function name?)
-  log_http(
-    &conf, 
+  logconf_http(
+    &confA, 
     NULL,
-    &varA, 
     "TITLE1", 
-    (struct sized_buffer){"HEADER1", 7},
-    (struct sized_buffer){"BODY1", 5},
-    "%s", varA);
+    (struct sized_buffer){"HEADER_A", 8},
+    (struct sized_buffer){"BODY_A", 6},
+    "%s", "Hello");
 
-  log_http(
-    &conf, 
+  logconf_http(
+    &confB, 
     NULL,
-    &varB, 
     "TITLE2", 
-    (struct sized_buffer){"HEADER2", 7},
-    (struct sized_buffer){"BODY2", 5},
-    "%d", varB);
+    (struct sized_buffer){"HEADER_B", 8},
+    (struct sized_buffer){"BODY_B", 6},
+    "%d", 1337);
 
-  log_http(
-    &conf, 
+  logconf_http(
+    &confC, 
     NULL,
-    &varC, 
     "TITLE3", 
-    (struct sized_buffer){"HEADER3", 7},
-    (struct sized_buffer){"BODY3", 5},
-    "%d", varC.x);
+    (struct sized_buffer){"HEADER_C", 8},
+    (struct sized_buffer){"BODY_C", 6},
+    "%c", '7');
 
   // cleanup conf resources
-  logconf_cleanup(&conf);
+  logconf_cleanup(&confA);
+  logconf_cleanup(&confB);
+  logconf_cleanup(&confC);
+
+  fclose(fp);
 }

@@ -11,12 +11,11 @@
 
 #include "cee-utils.h"
 #include "json-actor.h"
+#include "json-actor-boxed.h" /* ja_str */
 
 
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static size_t g_counter;
-static bool g_first_run = true;
-static pid_t g_main_pid; // initialized at logconf_setup()
 
 
 static int
@@ -30,33 +29,6 @@ get_log_level(char level[])
   if (0 == strcasecmp(level, "FATAL")) return LOG_FATAL;
   ERR("Log level doesn't exist: %s", level);
   return 0;// make compiler happy
-}
-
-void
-logconf_add_id(struct logconf *config, void *addr, const char tag[])
-{
-  if (!config || !addr || IS_EMPTY_STRING(tag)) 
-    return; /* EARLY RETURN */
-
-  for (size_t i=0; i < LOGCONF_MAX_IDS; ++i) {
-    if ( (NULL == config->ids[i].addr) || (addr == config->ids[i].addr) ) {
-      config->ids[i].addr = addr;
-      snprintf(config->ids[i].tag, sizeof(config->ids[i].tag), "%s", tag);
-      return; /* EARLY RETURN */
-    }
-  }
-  ERR("Reach maximum logconf_ids threshold (%d)", LOGCONF_MAX_IDS);
-}
-
-char*
-logconf_tag(struct logconf *config, void *addr)
-{
-  if (config) {
-    for (size_t i=0; i < LOGCONF_MAX_IDS; ++i)
-      if (addr == config->ids[i].addr)
-        return config->ids[i].tag;
-  }
-  return "NO_TAG";
 }
 
 static void
@@ -80,15 +52,9 @@ log_color_cb(log_Event *ev)
   char buf[16];
   buf[strftime(buf, sizeof(buf), "%H:%M:%S", ev->time)] = '\0';
 
-  int tid_color;
-  if (main_tid == pthread_self())
-    tid_color = 31;
-  else
-    tid_color = 90;
-
   fprintf(
-    ev->udata, "%s|\x1b[%dm%010u\x1b[0m %s%-5s\x1b[0m \x1b[90m%s:%d:\x1b[0m ",
-    buf, tid_color, (unsigned)pthread_self(), level_colors[ev->level], level_strings[ev->level],
+    ev->udata, "%s|\x1b[90m%010u\x1b[0m %s%-5s\x1b[0m \x1b[90m%s:%d:\x1b[0m ",
+    buf, (unsigned)pthread_self(), level_colors[ev->level], level_strings[ev->level],
     ev->file, ev->line);
 
   vfprintf(ev->udata, ev->fmt, ev->ap);
@@ -96,11 +62,29 @@ log_color_cb(log_Event *ev)
   fflush(ev->udata);
 }
 
+static bool
+module_is_disabled(struct logconf *conf)
+{
+  if (!conf->disable_modules) return false;
+
+  for (int i=0; conf->disable_modules[i]; ++i) {
+    if (0 == strcmp(conf->id, conf->disable_modules[i]->value)) {
+      // reset presets (if any)
+      memset(&conf->L, 0, sizeof conf->L);
+      // silence output
+      _log_set_quiet(&conf->L, true);
+      // make sure fatal still prints to stderr
+      _log_add_callback(&conf->L, &log_nocolor_cb, stderr, LOG_FATAL);
+      return true; /* EARLY RETURN */
+    }
+  }
+  return false;
+}
+
 void
-log_http(
-  struct logconf *config, 
+logconf_http(
+  struct logconf *conf, 
   struct loginfo *p_info,
-  void *addr_id,
   char url[],
   struct sized_buffer header,
   struct sized_buffer body,
@@ -110,157 +94,206 @@ log_http(
   size_t counter = ++g_counter;
   pthread_mutex_unlock(&g_lock);
 
-  if (!config || !config->http.f) 
-    return;
+  if (!conf || !conf->http->f) return;
 
+  // Build 'label' string
   char label[512];
-
   va_list label_args;
   va_start(label_args, label_fmt);
-
   size_t ret = vsnprintf(label, sizeof(label), label_fmt, label_args);
   ASSERT_S(ret < sizeof(label), "Out of bounds write attempt");
-
   va_end(label_args);
 
-  struct loginfo info = {
-    .counter = counter,
-    .tstamp_ms = cee_timestamp_ms()
-  };
-
+  // Get timestamp string
+  uint64_t tstamp_ms = cee_timestamp_ms();
   char timestr[64];
-  cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &info.tstamp_ms);
+  cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &tstamp_ms);
 
-  fprintf(config->http.f, 
-    "%s [%s #TID%u] - %s - %s\n%.*s%s%.*s\n@@@_%zu_@@@\n",
-    label,
-    logconf_tag(config, addr_id), 
-    (unsigned)pthread_self(),
-    timestr,
+  // Print to output
+  fprintf(conf->http->f, 
+    "%s [%s #TID%u] - %s - %s\n"
+    "%.*s%s%.*s\n"
+    "@@@_%zu_@@@\n",
+// 1st LINE ARGS
+    label, 
+    conf->id, 
+    (unsigned)pthread_self(), 
+    timestr, 
     url,
+// 2nd LINE ARGS
     (int)header.size, header.start,
     header.size ? "\n" : "",
     (int)body.size, body.start,
-    info.counter);
-  fflush(config->http.f);
+// 3rd LINE ARGS
+    counter);
 
-  if (p_info) *p_info = info;
+  fflush(conf->http->f);
+
+  // extract logging info if requested
+  if (p_info) {
+    *p_info = (struct loginfo){
+      .counter = counter,
+      .tstamp_ms = tstamp_ms
+    };
+  }
 }
 
 void
-logconf_setup(struct logconf *config, const char config_file[])
+logconf_setup(struct logconf *conf, const char id[], FILE* fp)
 {
-  if (IS_EMPTY_STRING(config_file)) {
-    config->http.f = NULL;
-    return; /* EARLY RETURN */
-  }
+  memset(conf, 0, sizeof *conf);
+
+  int ret = snprintf(conf->id, LOGCONF_ID_LEN, "%s", id);
+  ASSERT_S(ret < LOGCONF_ID_LEN, "Out of bounds write attempt");
+  conf->pid  = getpid();
+
+  if (!fp) return; /* EARLY RETURN */
+
+  conf->logger = calloc(1, sizeof *conf->logger);
+  conf->http = calloc(1, sizeof *conf->http);
 
   struct {
     char level[16];
+    char filename[LOGCONF_PATH_MAX];
     bool quiet, use_color, overwrite;
-    bool http_enable;
-  } logging={0}; // set all as zero
+    struct {
+      bool enable;
+      char filename[LOGCONF_PATH_MAX];
+    } http;
+  } l={0};
 
-  if (config->contents) {
-    free(config->contents);
-    config->len = 0;
-  }
+  conf->file.start = cee_load_whole_file_fp(fp, &conf->file.size);
+  json_extract(conf->file.start, conf->file.size,
+             "(logging):{"
+               "(level):.*s,"
+               "(filename):.*s,"
+               "(quiet):b,"
+               "(use_color):b,"
+               "(overwrite):b,"
+               "(http):{"
+                 "(enable):b,"
+                 "(filename):.*s,"
+               "},"
+               "(http_dump):{" // deprecated
+                 "(enable):b,"
+                 "(filename):.*s,"
+               "},"
+               "(disable_modules):F"
+             "}",
+             sizeof(l.level), l.level,
+             sizeof(l.filename), l.filename,
+             &l.quiet,
+             &l.use_color,
+             &l.overwrite,
+             &l.http.enable,
+             sizeof(l.http.filename), l.http.filename,
+             &l.http.enable,
+             sizeof(l.http.filename), l.http.filename,
+             &ja_str_list_from_json, &conf->disable_modules);
 
-  config->contents = cee_load_whole_file(config_file, &config->len);
-  json_extract(config->contents, config->len,
-             "(logging.level):.*s"
-             "(logging.filename):.*s"
-             "(logging.quiet):b"
-             "(logging.use_color):b"
-             "(logging.overwrite):b"
-             "(logging.http.enable):b"
-             "(logging.http.filename):.*s"
-             "(logging.http_dump.enable):b"
-             "(logging.http_dump.filename):.*s",
-             sizeof(logging.level), logging.level,
-             sizeof(config->logger.fname), config->logger.fname,
-             &logging.quiet,
-             &logging.use_color,
-             &logging.overwrite,
-             &logging.http_enable,
-             sizeof(config->http.fname), config->http.fname,
-             &logging.http_enable,
-             sizeof(config->http.fname), config->http.fname);
-
-  // child processes must be written to a different file
-  pid_t pid = getpid();
-  if (!g_first_run && pid != g_main_pid) {
-    size_t len;
-
-    len = strlen(config->logger.fname);
-    snprintf(config->logger.fname + len, sizeof(config->logger.fname) - len, "%ld", (long)pid);
-
-    len = strlen(config->http.fname);
-    snprintf(config->http.fname + len, sizeof(config->http.fname) - len, "%ld", (long)pid);
-  }
+  /* skip everything else if this module is disabled */
+  if (module_is_disabled(conf)) return;
 
   /* SET LOGGER CONFIGS */
-  if (!IS_EMPTY_STRING(config->logger.fname)) {
-    if (g_first_run && logging.overwrite)
-      config->logger.f = fopen(config->logger.fname, "w+");
-    else
-      config->logger.f = fopen(config->logger.fname, "a+");
-    log_add_callback(
-        logging.use_color ? &log_color_cb : &log_nocolor_cb, 
-        config->logger.f, 
-        get_log_level(logging.level));
-    ASSERT_S(NULL != config->logger.f, "Could not create logger file");
+  if (!IS_EMPTY_STRING(l.filename)) {
+    memcpy(conf->logger->fname, l.filename, LOGCONF_PATH_MAX);
+    conf->logger->f = fopen(conf->logger->fname, l.overwrite ? "w+" : "a+");
+    ASSERT_S(NULL != conf->logger->f, "Could not create logger file");
+
+    _log_add_callback(&conf->L,
+        l.use_color ? &log_color_cb : &log_nocolor_cb, 
+        conf->logger->f, 
+        get_log_level(l.level));
   }
 
   /* SET HTTP DUMP CONFIGS */
-  if (logging.http_enable && !IS_EMPTY_STRING(config->http.fname)) {
-    if (g_first_run && logging.overwrite)
-      config->http.f = fopen(config->http.fname, "w+");
-    else
-      config->http.f = fopen(config->http.fname, "a+");
-    ASSERT_S(NULL != config->http.f, "Could not create dump file");
+  if (l.http.enable && !IS_EMPTY_STRING(l.http.filename)) {
+    memcpy(conf->http->fname, l.http.filename, LOGCONF_PATH_MAX);
+    conf->http->f = fopen(conf->http->fname, l.overwrite ? "w+" : "a+");
+    ASSERT_S(NULL != conf->http->f, "Could not create http logger file");
   }
 
-  if (g_first_run) {
-    g_first_run = false;
-    g_main_pid = getpid();
+  // disable default log.c callbacks
+  _log_set_quiet(&conf->L, true);
 
-    log_set_quiet(true); // disable default log.c callbacks
-    if (logging.quiet) // make sure fatal still prints to stderr
-      log_add_callback(
-          logging.use_color ? &log_color_cb : &log_nocolor_cb, 
-          stderr, 
-          LOG_FATAL);
-    else
-      log_add_callback(
-          logging.use_color ? &log_color_cb : &log_nocolor_cb, 
-          stderr, 
-          get_log_level(logging.level));
+  // make sure fatal still prints to stderr
+  _log_add_callback(&conf->L,
+      l.use_color ? &log_color_cb : &log_nocolor_cb, 
+      stderr, 
+      l.quiet ? LOG_FATAL : get_log_level(l.level));
+}
+
+void
+logconf_branch(struct logconf *branch, struct logconf *orig, const char id[]) 
+{
+  if (!orig) {
+    logconf_setup(branch, id, NULL);
+    return; /* EARLY RETURN */
+  }
+
+  pthread_mutex_lock(&g_lock);
+  memcpy(branch, orig, sizeof(struct logconf));
+  pthread_mutex_unlock(&g_lock);
+
+  branch->is_branch = true;
+  if (id) {
+    int ret = snprintf(branch->id, LOGCONF_ID_LEN, "%s", id);
+    ASSERT_S(ret < LOGCONF_ID_LEN, "Out of bounds write attempt");
+  }
+  branch->pid = getpid();
+
+  if (module_is_disabled(branch)) return;
+
+  /* To avoid overwritting, child processes files must be unique,
+   *    this will append the unique PID to the end of file names */
+  if (branch->pid != orig->pid) {
+    size_t len;
+
+    len = strlen(orig->logger->fname);
+    snprintf(branch->logger->fname + len, sizeof(branch->logger->fname) - len, "%ld", (long)branch->pid);
+
+    len = strlen(orig->http->fname);
+    snprintf(branch->http->fname + len, sizeof(branch->http->fname) - len, "%ld", (long)branch->pid);
   }
 }
 
 void
-logconf_cleanup(struct logconf *config)
+logconf_cleanup(struct logconf *conf)
 {
-  if (config->contents)
-    free(config->contents);
-  if (config->logger.f)
-    fclose(config->logger.f);
-  if (config->http.f)
-    fclose(config->http.f);
+  if (!conf->is_branch) {
+    if (conf->file.start) {
+      free(conf->file.start);
+    }
+    if (conf->logger) {
+      if (conf->logger->f) {
+        fclose(conf->logger->f);
+      }
+      free(conf->logger);
+    }
+    if (conf->http) {
+      if (conf->http->f) {
+        fclose(conf->http->f);
+      }
+      free(conf->http);
+    }
+    if (conf->disable_modules) {
+      ja_str_list_free(conf->disable_modules);
+    }
+  }
+  memset(conf, 0, sizeof *conf);
 }
 
 struct sized_buffer
-logconf_get_field(struct logconf *config, char *json_field)
+logconf_get_field(struct logconf *conf, char *json_field)
 {
   struct sized_buffer field={0};
-  if (!config->len) return field; // empty field
+  if (!conf->file.size) return field; // empty field
 
   char fmt[512];
   int ret = snprintf(fmt, sizeof(fmt), "(%s):T", json_field);
   ASSERT_S(ret < sizeof(fmt), "Out of bounds write attempt");
 
-  json_extract(config->contents, config->len, fmt, &field);
+  json_extract(conf->file.start, conf->file.size, fmt, &field);
 
   return field;
 }
