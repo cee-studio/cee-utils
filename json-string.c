@@ -386,7 +386,7 @@ second_iter:
       {
         *output_p = out_start;
         *output_len_p = d - out_start;
-        goto return_ok;
+        return 1;
       }
     case ALLOCATING:
       out_start = calloc(1, input_len);
@@ -394,7 +394,7 @@ second_iter:
       state = UNESCAPING;
       goto second_iter;
     case TESTING:
-      *output_p = input_start;
+      *output_p = strdup(input_start);
       *output_len_p = input_len;
       return 1;
     default:
@@ -405,10 +405,6 @@ return_err:
   if (UNESCAPING == state)
     free(out_start);
   return 0;
-
-return_ok:
-  return 1;
-
 }
 
 
