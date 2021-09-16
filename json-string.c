@@ -394,7 +394,7 @@ second_iter:
       state = UNESCAPING;
       goto second_iter;
     case TESTING:
-      *output_p = strdup(input_start);
+      *output_p = input_start;
       *output_len_p = input_len;
       return 1;
     default:
