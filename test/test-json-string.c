@@ -12,7 +12,7 @@ TEST expect_unescaped_equal_original(char str[])
   char *estr=NULL, *unstr=NULL;
   size_t estr_size=0, unstr_size=0;
 
-  estr = json_string_escape(&estr_size, str, len);
+  ASSERTm("Couldn't escape", estr = json_string_escape(&estr_size, str, len));
   ASSERTm("Couldn't unescape", json_string_unescape(&unstr, &unstr_size, estr, estr_size));
   ASSERT_FALSEm("Unescaped and escaped are the same", 0 == strcmp(estr, unstr));
   ASSERT_STRN_EQm("Unescaped doesn't match original", str, unstr, len);
@@ -27,7 +27,7 @@ TEST expect_escaped_equal_original(char str[])
   size_t estr_size=0, unstr_size=0;
 
   ASSERTm("Couldn't unescape", json_string_unescape(&unstr, &unstr_size, str, len));
-  estr = json_string_escape(&estr_size, unstr, unstr_size);
+  ASSERTm("Couldn't escape", estr = json_string_escape(&estr_size, unstr, unstr_size));
   ASSERT_FALSEm("Unescaped and escaped are the same", 0 == strcmp(estr, unstr));
   ASSERT_STRN_EQm("Escaped doesn't match original", str, estr, len);
   PASS();
@@ -36,16 +36,17 @@ TEST expect_escaped_equal_original(char str[])
 SUITE(check_json_string)
 {
   char scp_list[][2][256] = {
-    {"Emojis", "😊✔️💝"}
+    {"string", "Hello\bThere\n"},
+    {"UTF8", "🆗🅰️ЈÐ"}
   };
   char unscp_list[][2][256] = { 
-    {"Normal", "Hello\\bThere\\n"},
+    {"string", "Hello\\bThere\\n"},
     {"UTF8", "\\ud83d\\udcac" }
   };
 
   for (int i=0; i < sizeof scp_list / sizeof *scp_list; ++i) {
     greatest_set_test_suffix(scp_list[i][0]);
-    RUN_TESTp(expect_escaped_equal_original, scp_list[i][1]);
+    RUN_TESTp(expect_unescaped_equal_original, scp_list[i][1]);
   }
   for (int i=0; i < sizeof unscp_list / sizeof *unscp_list; ++i) {
     greatest_set_test_suffix(unscp_list[i][0]);
