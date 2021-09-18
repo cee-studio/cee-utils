@@ -82,7 +82,7 @@ utf_valid(uint32_t v)
 {
   if(v>0x10FFFF)
     return false;
-  if(0xD800 <=v && v<= 0xDFFF) // surragates
+  if(0xD800 <=v && v<= 0xDFFF) // surrogates
     return false;
   return true;
 }
@@ -255,7 +255,7 @@ read_4_digits(char ** str_p, char * const buf_end, uint16_t *x)
   for(i=0; i<4; i++) {
     char c=str[i];
     buf[i] = c;
-    if(	('0'<= c && c<='9') || ('A'<= c && c<='F') || ('a'<= c && c<='f') )
+    if(isxdigit(c))
       continue;
 
     return false;
@@ -298,8 +298,8 @@ json_string_unescape(char **output_p, size_t *output_len_p,
   unsigned char c;
   char * const input_start = input, * const input_end = input + input_len;
   char * out_start = NULL, * d = NULL, * s = NULL;
-  uint16_t first_surragate;
-  int second_surragate_expected;
+  uint16_t first_surrogate;
+  int second_surrogate_expected;
 
 
   enum state {
@@ -309,13 +309,13 @@ json_string_unescape(char **output_p, size_t *output_len_p,
   } state = TESTING;
 
 second_iter:
-  first_surragate = 0;
-  second_surragate_expected = 0;
+  first_surrogate = 0;
+  second_surrogate_expected = 0;
   for (s = input_start; s < input_end;) {
     c = * s;
     s ++;
 
-    if (second_surragate_expected && c != '\\')
+    if (second_surrogate_expected && c != '\\')
       goto return_err;
 
     if (0<= c && c <= 0x1F)
@@ -335,40 +335,37 @@ second_iter:
       c = * s;
       s ++;
 
-      if (second_surragate_expected && c != 'u')
+      if (second_surrogate_expected && c != 'u')
         goto return_err;
 
       switch(c) {
-        case	'"':
-        case	'\\':
-        case	'/':
+      case	'"':
+      case	'\\':
+      case	'/':
           *d = c; d++; break;
-        case	'b': *d = '\b'; d ++;  break;
-        case	'f': *d = '\f'; d ++;  break;
-        case	'n': *d = '\n'; d ++;  break;
-        case	'r': *d = '\r'; d ++;  break;
-        case	't': *d = '\t'; d ++;  break;
-        case	'u':
-        {
+      case	'b': *d = '\b'; d ++;  break;
+      case	'f': *d = '\f'; d ++;  break;
+      case	'n': *d = '\n'; d ++;  break;
+      case	'r': *d = '\r'; d ++;  break;
+      case	't': *d = '\t'; d ++;  break;
+      case	'u': {
           uint16_t x;
           if (!read_4_digits(&s, input_end, &x))
             goto return_err;
-          if (second_surragate_expected) {
+          if (second_surrogate_expected) {
             if (!utf16_is_second_surrogate(x))
               goto return_err;
-            d = append(utf16_combine_surrogate(first_surragate, x), d);
-            second_surragate_expected = 0;
+            d = append(utf16_combine_surrogate(first_surrogate, x), d);
+            second_surrogate_expected = 0;
           } else if (utf16_is_first_surrogate(x)) {
-            second_surragate_expected = 1;
-            first_surragate = x;
+            second_surrogate_expected = 1;
+            first_surrogate = x;
           } else {
             d = append(x, d);
           }
-          break;
-        }
-        default:
-          if(0<= c && c <= 0x1F) /* report errors */
-            goto return_err;
+          break; }
+      default:
+          goto return_err;
       }
     }
     else if (UNESCAPING == state) {
@@ -377,9 +374,8 @@ second_iter:
     }
   }
 
-  switch (state)
-  {
-    case UNESCAPING:
+  switch (state) {
+  case UNESCAPING:
       if (!utf8_validate(out_start, d))
         goto return_err;
       else
@@ -388,16 +384,16 @@ second_iter:
         *output_len_p = d - out_start;
         return 1;
       }
-    case ALLOCATING:
+  case ALLOCATING:
       out_start = calloc(1, input_len);
       d = out_start;
       state = UNESCAPING;
       goto second_iter;
-    case TESTING:
+  case TESTING:
       *output_p = input_start;
       *output_len_p = input_len;
       return 1;
-    default:
+  default:
       break;
   }
 
@@ -406,7 +402,6 @@ return_err:
     free(out_start);
   return 0;
 }
-
 
 /* Converts a hex character to its integer value */
 static char from_hex(char ch) {
