@@ -96,6 +96,9 @@ struct converter {
   char *injector_addrof;
   char *free;
   char *converted_builtin_type;
+  bool need_double_quotes;
+  bool inject_is_user_def;
+  bool extract_is_user_def;
 };
 
 static NTL_T(struct converter) converters = NULL;
@@ -121,10 +124,11 @@ load_converter(char *pos, size_t size, void *p)
 
 static char * converter_file = NULL;
 
+// @todo creating a callback for each converter to modify struct action would be much easier to maintain
 static void 
 init_converters(void) 
 {
-  converters = (struct converter**)ntl_calloc(2, sizeof(struct converter));
+  converters = (struct converter**)ntl_calloc(3, sizeof(struct converter));
   converters[0]->name = "iso8601";
   converters[0]->input_type = "char*";
   converters[0]->output_type = "u64_unix_ms_t";
@@ -134,6 +138,9 @@ init_converters(void)
   converters[0]->extractor_addrof = "&";
   converters[0]->injector_addrof = "&";
   converters[0]->converted_builtin_type = "uint64_t";
+  converters[0]->need_double_quotes = true;
+  converters[0]->inject_is_user_def = true;
+  converters[0]->extract_is_user_def = true;
 
   converters[1]->name = "snowflake";
   converters[1]->input_type = "char*";
@@ -144,6 +151,22 @@ init_converters(void)
   converters[1]->extractor_addrof = "&";
   converters[1]->injector_addrof = "&";
   converters[1]->converted_builtin_type = "uint64_t";
+  converters[1]->need_double_quotes = true;
+  converters[1]->inject_is_user_def = true;
+  converters[1]->extract_is_user_def = true;
+
+  converters[2]->name = "mixed";
+  converters[2]->input_type = "char*";
+  converters[2]->output_type = "char*";
+  converters[2]->free = "free";
+  converters[2]->extractor = "cee_strndup";
+  converters[2]->injector = "s";
+  converters[2]->extractor_addrof = "&";
+  converters[2]->injector_addrof = "";
+  converters[2]->converted_builtin_type = ""; // will fallback to str
+  converters[2]->need_double_quotes = false;
+  converters[2]->inject_is_user_def = false;
+  converters[2]->extract_is_user_def = true;
 }
 
 static void 
@@ -193,10 +216,7 @@ struct emit_option {
   int stack_top;
 };
 
-#ifndef JSON_STRUCT_GLOBAL
-#define JSON_STRUCT_GLOBAL
 static struct emit_option global_option;
-#endif
 
 static void init_emit_option(struct emit_option *opt)
 {
@@ -975,7 +995,8 @@ struct action {
   char *injector;
   char *alloc;
   char *free;
-  bool is_user_def;
+  bool inject_is_user_def;
+  bool extract_is_user_def;
   bool is_actor_alloc;
   bool need_double_quotes;
 };
@@ -1101,7 +1122,9 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
     }
     else {
       struct converter *c = get_converter(f->type.converter);
-      act->is_user_def = true;
+      act->inject_is_user_def = c->inject_is_user_def;
+      act->extract_is_user_def = c->extract_is_user_def;
+      act->need_double_quotes = c->need_double_quotes;
       act->extractor = c->extractor;
       act->injector = c->injector;
       act->free = c->free;
@@ -1110,7 +1133,6 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
       act->c_type = c->output_type;
       act->post_dec = "";
       act->pre_dec = "";
-      act->need_double_quotes = true;
 
       if (f->inject_condition.opcode == TYPE_RAW_JSON) {
         if (strcmp(c->converted_builtin_type, "uint64_t") == 0) {
@@ -1222,7 +1244,8 @@ static void to_action(struct jc_field *f, struct action *act)
             act->inject_arg_decor = "";
             act->post_dec = "";
             act->pre_dec = "*";
-            act->is_user_def = true;
+            act->inject_is_user_def = true;
+            act->extract_is_user_def = true;
             act->is_actor_alloc = false;
           }
         }
@@ -1239,7 +1262,8 @@ static void to_action(struct jc_field *f, struct action *act)
       act->extract_arg_decor = "&";
       act->inject_arg_decor = "";
       act->pre_dec = "**";
-      act->is_user_def = true;
+      act->inject_is_user_def = true;
+      act->extract_is_user_def = true;
       act->is_actor_alloc = true;
       if (to_builtin_action(f, act)) {
         asprintf(&act->extractor, "%s_list_from_json", act->fun_prefix);
@@ -1427,7 +1451,7 @@ static void emit_json_extractor(void *cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
   if (act.todo) return;
 
-  if (act.is_user_def)
+  if (act.extract_is_user_def)
     fprintf(fp, "                \"(%s):F,\"\n", act.json_key);
   else
     fprintf(fp, "                \"(%s):%s,\"\n", act.json_key, act.extractor);
@@ -1439,7 +1463,7 @@ static void emit_json_extractor_arg(void *cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
   if (act.todo) return;
 
-  if (act.is_user_def) {
+  if (act.extract_is_user_def) {
     if (act.is_actor_alloc)
       fprintf(fp, "                %s, &p->%s,\n",
               act.extractor, act.c_name);
@@ -1585,7 +1609,7 @@ static void emit_json_injector(void *cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
   if (act.todo) return;
 
-  if (act.is_user_def)
+  if (act.inject_is_user_def)
     if (act.need_double_quotes)
       fprintf(fp, "                \"(%s):|F|,\"\n", act.json_key);
     else
@@ -1600,7 +1624,7 @@ static void emit_json_injector_arg(void * cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
   if (act.todo) return;
 
-  if (act.is_user_def)
+  if (act.inject_is_user_def)
     fprintf(fp, "                %s, %sp->%s,\n",
             act.injector, act.inject_arg_decor, act.c_name);
   else
