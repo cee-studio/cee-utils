@@ -74,21 +74,15 @@ stat_to_type(const struct stat *st)
 }
 
 int
-cee_iso8601_to_unix_ms(char *timestamp, size_t len, void *p_data)
+cee_iso8601_to_unix_ms(char *str, size_t len, uint64_t *p_value)
 {
-  uint64_t *recipient = (uint64_t*)p_data;
-  ASSERT_S(NULL != recipient, "No recipient provided by user");
-
   struct tm tm;
   double seconds = 0;
   memset(&tm, 0, sizeof(tm));
 
-  /* Creating a temporary buffer and copying the string, because
-  sscanf receives a null-terminated string, and there's not
-  "snscanf" or something like that */
+  /* @todo is this really necessary? */
   char *buf = malloc(len + 1);
-
-  memcpy(buf, timestamp, len);
+  memcpy(buf, str, len);
   buf[len] = '\0';
 
   char tz_operator = 'Z';
@@ -117,19 +111,16 @@ cee_iso8601_to_unix_ms(char *timestamp, size_t len, void *p_data)
       break;
   }
 
-  *recipient = res;
+  *p_value = res;
 
   return 1; // SUCCESS
 }
 
 int
-cee_unix_ms_to_iso8601(char *str, size_t len, void *p_timestamp)
+cee_unix_ms_to_iso8601(char *str, size_t len, uint64_t *p_value)
 {
-  ASSERT_S(NULL != p_timestamp, "Missing 'p_timestamp'");
-  uint64_t timestamp = *(uint64_t*)p_timestamp;
-
-  time_t seconds = timestamp / 1000;
-  int millis = timestamp % 1000;
+  time_t seconds = *p_value / 1000;
+  int millis = *p_value % 1000;
 
   seconds += timezone;
   struct tm buf;
@@ -142,26 +133,26 @@ cee_unix_ms_to_iso8601(char *str, size_t len, void *p_timestamp)
 }
 
 int
-cee_strtoull(char *str, size_t len, void *p_data) 
+cee_strtoull(char *str, size_t len, uint64_t *p_value) 
 {
-  char *buf = malloc(len + 1);
-
-  memcpy(buf, str, len);
-  buf[len] = '\0';
-
-  uint64_t *recipient = (uint64_t*)p_data;
-  ASSERT_S(NULL != recipient, "No recipient provided by user");
-
-  *recipient = strtoull(buf, NULL, 10);
-
-  free(buf);
-
-  return 1;
+  char fmt[512];
+  int ret = snprintf(fmt, sizeof(fmt), "%%%zu"SCNu64, len);
+  if (ret >= sizeof(fmt)) return 0;
+  return sscanf(str, fmt, p_value) != EOF;
 }
 
 int
-cee_ulltostr(char *str, size_t len, void *p_data) {
-  return snprintf(str, len, "%" PRIu64 , *(uint64_t*)p_data);
+cee_ulltostr(char *str, size_t len, uint64_t *p_value) {
+  return snprintf(str, len, "%" PRIu64 , *p_value);
+}
+
+int
+cee_strndup(char *src, size_t len, char **p_dest) 
+{
+  *p_dest = malloc(len + 1);
+  memcpy(*p_dest, src, len);
+  (*p_dest)[len] = '\0';
+  return 1;
 }
 
 void
@@ -178,7 +169,7 @@ cee_sleep_ms(const int64_t delay_ms)
 
 /* returns current timestamp in milliseconds */
 uint64_t
-cee_timestamp_ms()
+cee_timestamp_ms(void)
 {
   struct timespec t;
   clock_gettime(CLOCK_REALTIME, &t);

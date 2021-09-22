@@ -30,13 +30,14 @@ int cee_dati_from_fjson(
   void (from_json_cb)(char *str, size_t len, void *p_data));
 
 /* can be matched to the json_scanf/printf %F specifier */
-int cee_iso8601_to_unix_ms(char *timestamp, size_t len, void *p_data);
-int cee_unix_ms_to_iso8601(char *str, size_t len, void *p_data);
-int cee_strtoull(char *str, size_t len, void *p_data);
-int cee_ulltostr(char *str, size_t len, void *p_data);
+int cee_iso8601_to_unix_ms(char *timestamp, size_t len, uint64_t *p_value);
+int cee_unix_ms_to_iso8601(char *str, size_t len, uint64_t *p_value);
+int cee_strtoull(char *str, size_t len, uint64_t *p_value);
+int cee_ulltostr(char *str, size_t len, uint64_t *p_value);
+int cee_strndup(char *src, size_t len, char **p_dest);
 
 void cee_sleep_ms(const int64_t delay_ms);
-uint64_t cee_timestamp_ms();
+uint64_t cee_timestamp_ms(void);
 char* cee_timestamp_str(char *p_str, int len);
 
 ssize_t cee_str_bounds_check(const char *str, const size_t threshold_len);
