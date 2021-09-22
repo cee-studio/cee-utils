@@ -1911,7 +1911,7 @@ static size_t extract_str (struct action * v, int i, struct extraction_info * in
   if (JSMN_STRING != tokens[i].type && JSMN_PRIMITIVE != tokens[i].type) {
     if (strong_type) {
       print_tok(stderr, json, tokens, i);
-      ERR("expecect string");
+      ERR("expected string");
     }
     else {
       return 0;
