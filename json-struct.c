@@ -157,7 +157,7 @@ init_converters(void)
 
   converters[2]->name = "mixed";
   converters[2]->input_type = "char*";
-  converters[2]->output_type = "char*";
+  converters[2]->output_type = "json_char_t*";
   converters[2]->free = "free";
   converters[2]->extractor = "cee_strndup";
   converters[2]->injector = "s";
