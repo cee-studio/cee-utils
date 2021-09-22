@@ -826,9 +826,9 @@ parse_value(
         pos += 3;
         goto return_true;
       }
-      else if (0 == strncmp(pos, "|F_nullable|", 3)) {
+      else if (0 == strncmp(pos, "|F_nullable|", 12)) {
         act->tag = ACT_USER_DEF_ACCEPT_NULL_ENCLOSED;
-        pos += 3;
+        pos += 12;
         goto return_true;
       }
       else
