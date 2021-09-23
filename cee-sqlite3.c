@@ -56,16 +56,16 @@ int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
       if (idx <= 0) continue;
       switch(pairs[i].type) 
       {
-        case INT:
+        case CEE_SQLITE3_INT:
           sqlite3_bind_int(res, idx, *(int *)pairs[i].value);
           break;
-        case INT64:
+        case CEE_SQLITE3_INT64:
           sqlite3_bind_int64(res, idx, *(int64_t *)pairs[i].value);
           break;
-        case TEXT:
+        case CEE_SQLITE3_TEXT:
           sqlite3_bind_text(res, idx, (char*)pairs[i].value, pairs[i].size == 0 ? -1: pairs[i].size, SQLITE_STATIC);
           break;
-        case BLOB:
+        case CEE_SQLITE3_BLOB:
           sqlite3_bind_blob(res, idx, (void*)pairs[i].value, pairs[i].size, SQLITE_STATIC);
           break;
       }

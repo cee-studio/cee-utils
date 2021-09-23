@@ -15,10 +15,10 @@ extern sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts);
 struct cee_sqlite3_bind_info {
   char * name;
   enum type {
-    INT,
-    INT64,
-    TEXT,
-    BLOB
+    CEE_SQLITE3_INT,
+    CEE_SQLITE3_INT64,
+    CEE_SQLITE3_TEXT,
+    CEE_SQLITE3_BLOB
   } type;
   void * value;
   size_t size;
