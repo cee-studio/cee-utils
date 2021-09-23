@@ -15,37 +15,6 @@ sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)
     return NULL;
   }
 
-  char *sql = "begin transaction;"
-    "create table if not exists code_snippet "
-    "(author_id int, guild_id int, code_id int, js_code text, title text, keywords text);"
-    "create table if not exists eval (code_id int, user_id int, eval_id int);"
-    "create table if not exists channel (channel_id int, type int);"
-    "create table if not exists eval_tracker (code_id int, user_id int, eval_id int);"
-    // link a code to a message
-    "create table if not exists executable_message"
-    "(guild_id int, channel_id int, message_id int, js_code text, author_id int);"
-    // key = guild_id
-    "create table if not exists cached_guild (key text, json text);"
-    // key = guild_id
-    "create table if not exists cached_guild_roles (key text, json text);"
-    // key = channel_id
-    "create table if not exists cached_channel (key text, json text);"
-
-    // key = guild_id + "_" + user_id
-    "create table if not exists cached_guild_member (key text, json text);"
-    /*
-     *  key: "guild_" + guild_id, "roles_" + guild_id, 
-     *       "channel_" + channel_id, 
-     *       "member_" + guild_id + "_" + "user_id"
-     * 
-     *  json: text
-     */
-    "create table if not exists cached_json (key text, json text);"
-    "create table if not exists bot_message (guild_id int, channel_id int, message_id int);"
-    "create table if not exists cached_message (channel_id int, message_id int, content text);"
-    "commit;"
-  ;
-
   char *err_msg=NULL;
   rc = sqlite3_exec(db, "begin transaction;", 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
