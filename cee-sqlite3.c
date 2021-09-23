@@ -78,7 +78,7 @@ int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
   }
 }
 
-void cee_sqlite_3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p)
+void cee_sqlite3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p)
 {
   sqlite3_stmt *res;
   int rc, step;
