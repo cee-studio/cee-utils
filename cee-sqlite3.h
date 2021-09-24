@@ -36,7 +36,7 @@ extern int cee_sqlite3_bind_run_sql(sqlite3 *db,
                                     struct cee_sqlite3_bind_info *pairs, 
                                     char *sql, sqlite3_stmt **res_p);
 
-extern void cee_sqlite3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p);
+extern int cee_sqlite3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p);
 
 #endif // CEE_USE_SQLITE3
 #endif
