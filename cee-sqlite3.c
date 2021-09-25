@@ -90,7 +90,7 @@ int cee_sqlite3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p)
   if (step == SQLITE_ROW) {
     step = cee_sqlite3_bind_run_sql(db, p->pairs, p->update, &res);
     if (step != SQLITE_DONE) {
-      fprintf(stderr, "execution failed: %s", sqlite3_errmsg(db));
+      fprintf(stderr, "execution failed: %s\n", sqlite3_errmsg(db));
       rc = -1;
     }
     sqlite3_finalize(res);
@@ -98,7 +98,7 @@ int cee_sqlite3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p)
   else {
     step = cee_sqlite3_bind_run_sql(db, p->pairs, p->insert, &res);
     if (step != SQLITE_DONE) {
-      fprintf(stderr, "execution failed: %s", sqlite3_errmsg(db));
+      fprintf(stderr, "execution failed: %s\n", sqlite3_errmsg(db));
       rc = -1;
     }
     sqlite3_finalize(res);
