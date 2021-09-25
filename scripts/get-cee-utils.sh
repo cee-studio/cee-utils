@@ -47,7 +47,9 @@ uthash.h
 utlist.h
 utringbuffer.h
 utstack.h
-utstring.h"
+utstring.h
+HttpStatusCodes_C.h
+"
 
 mkdir -p $mypath/../cee-utils
 pushd $mypath/../cee-utils
