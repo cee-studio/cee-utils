@@ -92,8 +92,10 @@ jsmn_strerror(int code)
   }
 }
 
-#define JSMN_CHECK(code)                               \
-  VASSERT_S(code > 0, "%s (code: %d) %s",              \
+#define JSMN_CHECK(code, json, size)                    \
+  if (code <= 0)                                        \
+    ERR("Failed parsing: %.*s\n\t%s(code: %d) %s",      \
+      (int)size, json,                                  \
       jsmn_code_print(code), code, jsmn_strerror(code))
 
 
@@ -2426,7 +2428,7 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   //calculate how many tokens are needed
   jsmn_init(&parser);
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
-  JSMN_CHECK(num_tok);
+  JSMN_CHECK(num_tok, json, size);
   DS_PRINT("# of tokens = %d", num_tok);
 
   jsmntok_t * tokens = malloc(sizeof(jsmntok_t) * num_tok);
@@ -2434,7 +2436,7 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
   //fetch tokens
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
-  JSMN_CHECK(num_tok);
+  JSMN_CHECK(num_tok, json, size);
 
   /* Assume the top-level element is an object */
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
@@ -2672,20 +2674,19 @@ query_inject(char *query, size_t size, char *injector, ...)
 }
 
 int
-json_to_sized_buffer_ntl
-  (char *json, size_t size, NTL_T(struct sized_buffer) *p)
+json_to_sized_buffer_ntl(char *json, size_t size, NTL_T(struct sized_buffer) *p)
 {
   jsmn_parser parser;
   jsmn_init(&parser);
   jsmntok_t * tokens = NULL;
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   DS_PRINT("# of tokens = %d", num_tok);
-  JSMN_CHECK(num_tok);
+  JSMN_CHECK(num_tok, json, size);
 
   tokens = malloc(sizeof(jsmntok_t) * num_tok);
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
-  JSMN_CHECK(num_tok);
+  JSMN_CHECK(num_tok, json, size);
 
   /* Assume the top-level element is an object */
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
