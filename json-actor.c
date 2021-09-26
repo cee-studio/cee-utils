@@ -94,7 +94,7 @@ jsmn_strerror(int code)
 
 #define JSMN_CHECK(code, json, size)                    \
   if (code <= 0)                                        \
-    ERR("Failed parsing: %.*s\n\t%s(code: %d) %s",      \
+    ERR("\n\tFailed at: '%.*s'\n\t%s(code: %d) %s",     \
       (int)size, json,                                  \
       jsmn_code_print(code), code, jsmn_strerror(code))
 
