@@ -1,6 +1,8 @@
 #if defined(CEE_USE_SQLITE3)
 #include "cee-sqlite3.h"
 
+struct cee_sqlite3_bind_info cee_sqlite3_no_bindings[1] = {{.name = NULL}};
+
 sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)
 {
   sqlite3_stmt *res;
