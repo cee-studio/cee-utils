@@ -23,15 +23,15 @@ char*
 cee_load_whole_file_fp(FILE *fp, size_t *len)
 {
   fseek(fp, 0, SEEK_END);
-  long f_size = ftell(fp);
+  long fsize = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
-  char *str = malloc(f_size);
-  fread(str, 1, f_size, fp);
+  char *str = malloc(fsize + 1);
 
-  if (len) {
-    *len = f_size;
-  }
+  str[fsize] = '\0';
+  fread(str, 1, fsize, fp);
+
+  if (len) *len = fsize;
 
   return str;
 }
