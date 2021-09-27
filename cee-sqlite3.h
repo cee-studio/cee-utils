@@ -31,9 +31,6 @@ struct cee_sqlite3_iu {
   struct cee_sqlite3_bind_info *pairs;
 };
 
-
-extern struct cee_sqlite3_bind_info* cee_sqlite3_no_bindings;
-
 extern int cee_sqlite3_bind_run_sql(sqlite3 *db, 
                                     struct cee_sqlite3_bind_info *pairs, 
                                     char *sql, sqlite3_stmt **res_p);

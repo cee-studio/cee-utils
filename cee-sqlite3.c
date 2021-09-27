@@ -1,8 +1,6 @@
 #if defined(CEE_USE_SQLITE3)
 #include "cee-sqlite3.h"
 
-struct cee_sqlite3_bind_info cee_sqlite3_no_bindings[1] = {{.name = NULL}};
-
 sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)
 {
   sqlite3_stmt *res;
@@ -45,7 +43,7 @@ sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)
 }
 
 int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
-  char *sql, sqlite3_stmt **res_p)
+                             char *sql, sqlite3_stmt **res_p)
 {
   sqlite3_stmt *res;
   int rc = sqlite3_prepare_v2(db, sql, -1, res_p, 0);
@@ -53,23 +51,25 @@ int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
   int idx = 0;
 
   if (rc == SQLITE_OK) {
-    for(int i = 0; pairs[i].name; i++) {
-      idx = sqlite3_bind_parameter_index(res, pairs[i].name);
-      if (idx <= 0) continue;
-      switch(pairs[i].type) 
-      {
-        case CEE_SQLITE3_INT:
-          sqlite3_bind_int(res, idx, *(int *)pairs[i].value);
-          break;
-        case CEE_SQLITE3_INT64:
-          sqlite3_bind_int64(res, idx, *(int64_t *)pairs[i].value);
-          break;
-        case CEE_SQLITE3_TEXT:
-          sqlite3_bind_text(res, idx, (char*)pairs[i].value, pairs[i].size == 0 ? -1: pairs[i].size, SQLITE_STATIC);
-          break;
-        case CEE_SQLITE3_BLOB:
-          sqlite3_bind_blob(res, idx, (void*)pairs[i].value, pairs[i].size, SQLITE_STATIC);
-          break;
+    if (pairs) {
+      for(int i = 0; pairs[i].name; i++) {
+        idx = sqlite3_bind_parameter_index(res, pairs[i].name);
+        if (idx <= 0) continue;
+        switch(pairs[i].type) 
+        {
+          case CEE_SQLITE3_INT:
+            sqlite3_bind_int(res, idx, *(int *)pairs[i].value);
+            break;
+          case CEE_SQLITE3_INT64:
+            sqlite3_bind_int64(res, idx, *(int64_t *)pairs[i].value);
+            break;
+          case CEE_SQLITE3_TEXT:
+            sqlite3_bind_text(res, idx, (char*)pairs[i].value, pairs[i].size == 0 ? -1: pairs[i].size, SQLITE_STATIC);
+            break;
+          case CEE_SQLITE3_BLOB:
+            sqlite3_bind_blob(res, idx, (void*)pairs[i].value, pairs[i].size, SQLITE_STATIC);
+            break;
+        }
       }
     }
     return sqlite3_step(res);
