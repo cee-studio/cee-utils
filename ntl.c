@@ -271,9 +271,11 @@ STATIC size_t ntl_to_buf(char *buf, size_t size, ntl_t p, struct ntl_str_delimit
   }
 
   if (start) {
-    buf[0] = d->end_delimiter;
+    *buf = d->end_delimiter;
     buf ++;
   }
+  *buf = '\0';
+
   tsize ++;
   return tsize;
 }
