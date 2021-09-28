@@ -62,6 +62,7 @@ log_color_cb(log_Event *ev)
   fflush(ev->udata);
 }
 
+/** @todo this doesn't disable `logconf_http()` logging */
 static bool
 module_is_disabled(struct logconf *conf)
 {
@@ -93,8 +94,9 @@ logconf_http(
   pthread_mutex_lock(&g_lock);
   size_t counter = ++g_counter;
   pthread_mutex_unlock(&g_lock);
+  uint64_t tstamp_ms = cee_timestamp_ms();
 
-  if (!conf || !conf->http->f) return;
+  if (!conf || !conf->http->f) goto _end;
 
   // Build 'label' string
   char label[512];
@@ -105,7 +107,6 @@ logconf_http(
   va_end(label_args);
 
   // Get timestamp string
-  uint64_t tstamp_ms = cee_timestamp_ms();
   char timestr[64];
   cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &tstamp_ms);
 
@@ -129,6 +130,7 @@ logconf_http(
 
   fflush(conf->http->f);
 
+_end:
   // extract logging info if requested
   if (p_info) {
     *p_info = (struct loginfo){
@@ -246,6 +248,8 @@ logconf_branch(struct logconf *branch, struct logconf *orig, const char id[])
 
   /* To avoid overwritting, child processes files must be unique,
    *    this will append the unique PID to the end of file names */
+  /** @todo this actually doesn't do anything, it creates the filename
+   * but never create the files */
   if (branch->pid != orig->pid) {
     size_t len;
 
