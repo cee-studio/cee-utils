@@ -80,46 +80,6 @@ int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
   }
 }
 
-int cee_sqlite3_bind_run_sql2(sqlite3 *db,
-			      struct cee_sqlite3_bind_info *info,
-			      struct cee_sqlite3_bind_data *data,
-			      char *sql, sqlite3_stmt **res_p)
-{
-  sqlite3_stmt *res;
-  int rc = sqlite3_prepare_v2(db, sql, -1, res_p, 0);
-  res = *res_p;
-  int idx = 0;
-
-  if (rc == SQLITE_OK) {
-    if (info) {
-      for(int i = 0; info[i].name; i++) {
-        idx = sqlite3_bind_parameter_index(res, info[i].name);
-        if (idx <= 0) continue;
-        switch(info[i].type) 
-        {
-          case CEE_SQLITE3_INT:
-            sqlite3_bind_int(res, idx, data[i].i);
-            break;
-          case CEE_SQLITE3_INT64:
-            sqlite3_bind_int64(res, idx, data[i].i64);
-            break;
-          case CEE_SQLITE3_TEXT:
-            sqlite3_bind_text(res, idx, data[i].value, data[i].size == 0 ? -1: data[i].size, SQLITE_STATIC);
-            break;
-          case CEE_SQLITE3_BLOB:
-            sqlite3_bind_blob(res, idx, data[i].value, data[i].size, SQLITE_STATIC);
-            break;
-        }
-      }
-    }
-    return sqlite3_step(res);
-  }
-  else {
-    fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
-    return rc;
-  }
-}
-
 int cee_sqlite3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p)
 {
   sqlite3_stmt *res;
@@ -149,34 +109,4 @@ int cee_sqlite3_insert_or_update(sqlite3 *db, struct cee_sqlite3_iu *p)
   return rc;
 }
 
-int cee_sqlite3_insert_or_update2(sqlite3 *db,
-				  struct cee_sqlite3_bind_data *data,
-				  struct cee_sqlite3_iu *p)
-{
-  sqlite3_stmt *res;
-  int rc = 0, step;
-
-  sqlite3_exec(db, "begin transaction;", NULL, NULL, NULL);
-
-  step = cee_sqlite3_bind_run_sql2(db, p->pairs, data, p->select, &res);
-  sqlite3_finalize(res);
-  if (step == SQLITE_ROW) {
-    step = cee_sqlite3_bind_run_sql2(db, p->pairs, data, p->update, &res);
-    if (step != SQLITE_DONE) {
-      fprintf(stderr, "execution failed: %s\n", sqlite3_errmsg(db));
-      rc = -1;
-    }
-    sqlite3_finalize(res);
-  }
-  else {
-    step = cee_sqlite3_bind_run_sql2(db, p->pairs, data, p->insert, &res);
-    if (step != SQLITE_DONE) {
-      fprintf(stderr, "execution failed: %s\n", sqlite3_errmsg(db));
-      rc = -1;
-    }
-    sqlite3_finalize(res);
-  }
-  sqlite3_exec(db, "end transaction;", NULL, NULL, NULL);
-  return rc;
-}
 #endif
