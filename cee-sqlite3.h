@@ -30,6 +30,7 @@ struct cee_sqlite3_iu {
   char * select;
   char * update;
   char * insert;
+  char * delete_stmt;
   struct cee_sqlite3_bind_info *pairs;
 };
 
