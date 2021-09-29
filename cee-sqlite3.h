@@ -26,6 +26,16 @@ struct cee_sqlite3_bind_info {
   size_t size;
 };
 
+/*
+ * the value of binding data
+ */
+struct cee_sqlite3_bind_data {
+  int i;
+  int64_t i64;
+  char *value;
+  size_t size;
+};
+
 struct cee_sqlite3_iu {
   char * select;
   char * update;
