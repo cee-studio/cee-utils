@@ -55,14 +55,10 @@ int cee_sqlite3_bind_run_sql(struct cee_state *state,
     *sql_stmt_pp = sql_stmt;
 
   int idx = 0;
-  struct cee_json *result;
+  struct cee_json *result = NULL;
 
-  if (*ret)
+  if (ret && *ret)
     result = *ret;
-  else {
-    result = cee_json_object_mk(state);
-    *ret = result;
-  }
 
   if (rc == SQLITE_OK) {
     if (info) {
@@ -91,10 +87,9 @@ int cee_sqlite3_bind_run_sql(struct cee_state *state,
       sqlite3_finalize(sql_stmt);
     return rc;
   }
-  else {
+  else if (result)
     cee_json_object_set_string(state, result, "error", (char*)sqlite3_errmsg(db));
-    return rc;
-  }
+  return rc;
 }
 
 struct cee_json*
