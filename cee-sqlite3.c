@@ -52,8 +52,8 @@ int cee_sqlite3_bind_run_sql(sqlite3 *db, struct cee_sqlite3_bind_info *pairs,
 
   if (rc == SQLITE_OK) {
     if (pairs) {
-      for(int i = 0; pairs[i].name; i++) {
-        idx = sqlite3_bind_parameter_index(res, pairs[i].name);
+      for(int i = 0; pairs[i].var_name; i++) {
+        idx = sqlite3_bind_parameter_index(res, pairs[i].var_name);
         if (idx <= 0) continue;
         switch(pairs[i].type) 
         {
