@@ -9,6 +9,8 @@
 
 #include "sqlite3.h"
 
+struct cee_state;
+struct cee_json;
 
 extern sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts);
 
