@@ -66,8 +66,8 @@ int cee_sqlite3_bind_run_sql(struct cee_state *state,
 
   if (rc == SQLITE_OK) {
     if (info) {
-      for(int i = 0; info[i].name; i++) {
-        idx = sqlite3_bind_parameter_index(sql_stmt, info[i].name);
+      for(int i = 0; info[i].var_name; i++) {
+        idx = sqlite3_bind_parameter_index(sql_stmt, info[i].var_name);
         if (idx <= 0) continue;
         switch(info[i].type) 
         {
@@ -108,14 +108,14 @@ cee_sqlite3_insert_or_update(struct cee_state *state,
   int step;
   struct cee_json *result = cee_json_object_mk(state);
   sqlite3_exec(db, "begin transaction;", NULL, NULL, NULL);
-  step = cee_sqlite3_bind_run_sql(state, db, info, data, stmts->select, NULL, &result);
+  step = cee_sqlite3_bind_run_sql(state, db, info, data, stmts->select_stmt, NULL, &result);
   if (step == SQLITE_ROW) {
-    step = cee_sqlite3_bind_run_sql(state, db, info, data, stmts->update, NULL, &result);
+    step = cee_sqlite3_bind_run_sql(state, db, info, data, stmts->update_stmt, NULL, &result);
     if (step != SQLITE_DONE)
       cee_json_object_set_string(state, result, "error", (char*)sqlite3_errmsg(db));
   }
   else {
-    step = cee_sqlite3_bind_run_sql(state, db, info, data, stmts->insert, NULL, &result);
+    step = cee_sqlite3_bind_run_sql(state, db, info, data, stmts->insert_stmt, NULL, &result);
     if (step != SQLITE_DONE)
       cee_json_object_set_string(state, result, "error", (char*)sqlite3_errmsg(db));
     else {
