@@ -96,7 +96,8 @@ logconf_http(
   pthread_mutex_unlock(&g_lock);
   uint64_t tstamp_ms = cee_timestamp_ms();
 
-  if (!conf || !conf->http->f) goto _end;
+  if (!conf || !conf->http || !conf->http->f) 
+    goto _end;
 
   // Build 'label' string
   char label[512];
