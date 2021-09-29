@@ -13,7 +13,7 @@
 extern sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts);
 
 struct cee_sqlite3_bind_info {
-  char *var_name;
+  char *name; // name for the binding variable
   char *col_name;
   enum type {
     CEE_SQLITE3_INT,
