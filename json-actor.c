@@ -1636,6 +1636,7 @@ has_value (struct injection_info * info, struct value * v)
   void ** assigned_addrs = arg_switches->arg;
   switch (v->tag) {
     case V_ACTION:
+    {
       size_t i;
       for (i = 0; i < arg_switches->xend_idx; i++) {
         assert_is_pointer(v->_.action.operand);
@@ -1644,6 +1645,7 @@ has_value (struct injection_info * info, struct value * v)
           return 1;
       }
       return 0;
+    }
     case V_COMPOSITE_VALUE:
     {
       struct composite_value * cv = v->_.cv;

@@ -145,12 +145,14 @@ _json_preorder_cleanup(json_item_t *item)
     switch (item->type){
     case JSON_OBJECT:
     case JSON_ARRAY:
+    {
         size_t i;
         for (i=0; i < item->comp->num_branch; ++i){
             _json_preorder_cleanup(item->comp->branch[i]);
         }
         _json_composite_cleanup(item);
         break;
+    }
     case JSON_STRING:
         free(item->string.start);
         item->string.start = NULL;
