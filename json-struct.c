@@ -352,7 +352,7 @@ static void
 print_field(FILE *fp, struct jc_field *p)
 {
   if (p->todo)
-    fprintf(fp, "// @todo name: %s\n", p->name);
+    fprintf(fp, "/* @todo name: %s */\n", p->name);
   else {
     fprintf(fp, "name:%s, ", p->name);
     if (p->json_key)
@@ -782,8 +782,8 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
     t_alias = ns_to_symbol_name(e->typedef_name);
 
   if (e->title)
-    fprintf(fp, "// %s\n", e->title);
-  fprintf(fp, "// defined at %s:%d:%d\n",
+    fprintf(fp, "/* %s */\n", e->title);
+  fprintf(fp, "/* defined at %s:%d:%d */\n",
           spec_name, e->name_lnc.line, e->name_lnc.column);
   fputs("/**\n", fp);
   {
@@ -812,7 +812,7 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
     char *item_name = ns_to_item_name(item->name);
 
     if (item->todo) {
-      fprintf(fp, "// @todo %s %s\n", item_name, item->comment);
+      fprintf(fp, "/* @todo %s %s */\n", item_name, item->comment);
     }
     else {
       fprintf(fp, "  %s", item_name);
@@ -826,7 +826,7 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
       }
 
       if (item->comment)
-        fprintf(fp, ", ///< %s\n", item->comment);
+        fprintf(fp, ", /** %s */\n", item->comment);
       else
         fprintf(fp, ",\n");
     }
@@ -1412,7 +1412,7 @@ static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
   to_action(f, &act);
 
   if (act.todo)
-    fprintf(fp, "  // @todo p->%s\n", act.c_name);
+    fprintf(fp, "  /* @todo p->%s */\n", act.c_name);
   else if (act.free) {
     if (strstr(act.free, "_cleanup"))
       fprintf(fp, "  if (d->%s) {\n"
@@ -1426,7 +1426,7 @@ static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
                   act.c_name, act.free, act.c_name);
   } 
   else
-    fprintf(fp, "  // p->%s is a scalar\n", act.c_name);
+    fprintf(fp, "  /* p->%s is a scalar */\n", act.c_name);
 }
 
 static void gen_cleanup(FILE *fp, struct jc_struct *s)
@@ -1447,10 +1447,10 @@ static void emit_field(void *cxt, FILE *fp, struct jc_field *f)
   struct action act = {0};
   to_action(f, &act);
   if (act.todo) {
-    fprintf(fp, "  // @todo %s %s;\n", f->name, f->comment);
+    fprintf(fp, "  /* @todo %s %s; */\n", f->name, f->comment);
   }
   else if (f->comment)
-    fprintf(fp, "  %s %s%s%s; ///< %s\n",
+    fprintf(fp, "  %s %s%s%s; /** %s */\n",
             act.c_type, act.pre_dec, act.c_name, act.post_dec, f->comment);
   else
     fprintf(fp, "  %s %s%s%s;\n",
@@ -1504,7 +1504,7 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
           t, t);
 
   fprintf(fp, "{\n");
-  fprintf(fp, "  static size_t ret=0; // used for debugging\n");
+  fprintf(fp, "  static size_t ret=0; /**< used for debugging */\n");
   fprintf(fp, "  size_t r=0;\n");
   fprintf(fp, "  if (!*pp) *pp = malloc(sizeof **pp);\n");
   fprintf(fp, "  struct %s *p = *pp;\n", t);
@@ -1753,8 +1753,8 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
     t_alias = ns_to_symbol_name(s->typedef_name);
 
   if (s->title)
-    fprintf(fp, "// %s\n", s->title);
-  fprintf(fp, "// defined at %s:%d:%d\n",
+    fprintf(fp, "/* %s */\n", s->title);
+  fprintf(fp, "/* defined at %s:%d:%d */\n",
           spec_name, s->name_lnc.line, s->name_lnc.column);
   fputs("/**\n", fp);
   {
@@ -1795,11 +1795,11 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
     emit_field(NULL, fp, f);
     fprintf(fp, "\n");
   }
-  fprintf(fp, "  // The following is metadata used to \n");
-  fprintf(fp, "  // 1. control which field should be extracted/injected\n");
-  fprintf(fp, "  // 2. record which field is presented(defined) in JSON\n");
-  fprintf(fp, "  // 3. record which field is null in JSON\n");
-  fputs("/// @cond DOXYGEN_SHOULD_SKIP_THIS\n", fp);
+  fprintf(fp, "  /* The following is metadata used to \n");
+  fprintf(fp, "     1. control which field should be extracted/injected\n");
+  fprintf(fp, "     2. record which field is presented(defined) in JSON\n");
+  fprintf(fp, "     3. record which field is null in JSON */\n");
+  fputs("/** @cond DOXYGEN_SHOULD_SKIP_THIS */\n", fp);
   fprintf(fp, "  struct {\n");
   fprintf(fp, "    bool enable_arg_switches;\n");
   fprintf(fp, "    bool enable_record_defined;\n");
@@ -1807,8 +1807,8 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
   fprintf(fp, "    void *arg_switches[%d];\n", i);
   fprintf(fp, "    void *record_defined[%d];\n", i);
   fprintf(fp, "    void *record_null[%d];\n", i);
-  fprintf(fp, "  } __M; // metadata\n");
-  fputs("/// @endcond\n", fp);
+  fprintf(fp, "  } __M; /**< metadata */\n");
+  fputs("/** @endcond */\n", fp);
   if (t_alias)
     fprintf(fp, "} %s;\n", t_alias);
   else  
@@ -1940,7 +1940,7 @@ static void gen_opaque_struct(FILE *fp, struct jc_def *d, name_t **ns)
 
   char *t = ns_to_symbol_name(s->name);
 
-  fprintf(fp, "// defined at %s:%d:%d\n",
+  fprintf(fp, "/* defined at %s:%d:%d */\n",
           spec_name, s->name_lnc.line, s->name_lnc.column);
   fputs("/**\n", fp);
   {
