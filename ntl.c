@@ -9,7 +9,7 @@
 #define STATIC static
 #else
 #define STATIC
-#endif //
+#endif 
 
 /* 
  * @n_elems  the number of new elements
@@ -25,8 +25,8 @@ STATIC ntl_t ntl_malloc_init(size_t n_elems,  size_t elem_size, ntl_init_cb init
    * 2. n_elems elements of size `elem_size`
    */
   void **p = malloc(
-    (n_elems + 1) * sizeof(void *) // for a NULL terminated array of n_elems pointers
-    + n_elems * elem_size // for n_elems elements
+    (n_elems + 1) * sizeof(void *) /* for a NULL terminated array of n_elems pointers */
+    + n_elems * elem_size /* for n_elems elements */
   );
 
   /*
@@ -36,16 +36,16 @@ STATIC ntl_t ntl_malloc_init(size_t n_elems,  size_t elem_size, ntl_init_cb init
    */
   char * elem_start = (char *)&p[n_elems + 1];
   for (size_t i = 0; i < n_elems; i++) {
-    // p[i] points to the start of ith element.
+    /* p[i] points to the start of ith element. */
     p[i] = (void *)elem_start;
     if (init_cb)
       init_cb(p[i]);
 
-    // move elem_start to point to the start of the next element
+    /* move elem_start to point to the start of the next element */
     elem_start += elem_size;
   }
 
-  // terminate this ntl with a NULL;
+  /* terminate this ntl with a NULL; */
   p[n_elems] = NULL;
   return p;
 }
@@ -97,16 +97,16 @@ STATIC ntl_t ntl_realloc_init(ntl_t p, size_t new_n_elems, size_t elem_size, ntl
 
   if (NULL != p) {
     for ( ; p[i]; ++i) {
-      // (shallow) copy over data from old element to new element
+      /* (shallow) copy over data from old element to new element */
       memcpy(new_p[i], p[i], elem_size);
     }
-    // free the ntl but NOT cleanup its elements
+    /* free the ntl but NOT cleanup its elements */
     free(p);
   }
 
   if (init_cb) {
     for ( ; new_p[i]; ++i) {
-      // initialize new elements
+      /* initialize new elements */
       init_cb(new_p[i]);
     }
   }
@@ -135,14 +135,14 @@ STATIC void ntl_free(ntl_t p, ntl_free_cb free_cb)
  */
 STATIC size_t ntl_length(ntl_t p)
 {
-  if (NULL == p) // NULL is treated as empty
+  if (NULL == p) /* NULL is treated as empty */
     return 0;
 
   static size_t dummy;
   size_t i = 0;
   while (p[i]) {
-    // dummy will never be used, but it can prevent compilers
-    // from optimizing this loop away.
+    /* dummy will never be used, but it can prevent compilers */
+    /* from optimizing this loop away. */
     dummy ++;
     i ++;
   }
@@ -156,14 +156,14 @@ STATIC size_t ntl_length(ntl_t p)
  */
 STATIC size_t ntl_length_max(ntl_t p, size_t max)
 {
-  if (NULL == p) // NULL is treated as empty
+  if (NULL == p) /* NULL is treated as empty */
     return 0;
 
   static size_t dummy;
   size_t i = 0;
   while (p[i] && i < max) {
-    // dummy will never be used, but it can prevent compilers
-    // from optimizing this loop away.
+    /* dummy will never be used, but it can prevent compilers */
+    /* from optimizing this loop away. */
     dummy ++;
     i ++;
   }
@@ -250,7 +250,7 @@ STATIC size_t ntl_to_buf(char *buf, size_t size, ntl_t p, struct ntl_str_delimit
     psize = (*x)(buf, size, p[i]);
 
     if(start) {
-      buf += psize; // move to next available byte
+      buf += psize; /* move to next available byte */
     }
     tsize += psize;
     if (is_last) {
@@ -323,7 +323,7 @@ STATIC ntl_t ntl_append(ntl_t p, size_t elem_size, void *added_elem)
   size_t i=0;
   ntl_t o = ntl_calloc(1 + ntl_length(p), elem_size);
   while (p && p[i]) {
-    // copy prev array contents to new array
+    /* copy prev array contents to new array */
     memcpy(o[i], p[i], elem_size);
     i++;
   }

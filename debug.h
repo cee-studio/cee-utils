@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "log.h"
 
-#ifdef __saiph__ // for error tracing purposes
+#ifdef __saiph__ /* for error tracing purposes */
 #  define ABORT()    { static char *p="abort"; *p=0; /* force segfault with a backtrace */  }
 #else
 #  define ABORT()    abort()
@@ -14,7 +14,7 @@
 #define D_FMT_PREFIX "[%s:%d] %s()\n\t"
 #define D_FMT_ARGS __FILE__, __LINE__, __func__
 
-// Encode a string with ANSI color
+/* Encode a string with ANSI color */
 #ifdef LOG_USE_COLOR
 # define ANSICOLOR(str, color) "\x1b["color"m"str"\x1b[0m"
 #else
@@ -77,7 +77,7 @@
     }                                                    \
   } while(0)
 
-// THIS WILL ONLY WORK IF __VA_ARGS__ IS SET
+/* THIS WILL ONLY WORK IF __VA_ARGS__ IS SET */
 #define VASSERT_S(expr, fmt, ...)                            \
   do {                                                       \
     if (!(expr)){                                            \
@@ -136,4 +136,4 @@
 
 #endif
 
-#endif // DEBUG_H
+#endif /* DEBUG_H */

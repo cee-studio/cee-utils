@@ -58,9 +58,9 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#define JSMN_STATIC  // dont expose jsmn symbols
-#define JSMN_PARENT_LINKS // add parent links to jsmn_tok, which are needed
-#define JSMN_STRICT  // parse json in strict mode
+#define JSMN_STATIC  /* dont expose jsmn symbols */
+#define JSMN_PARENT_LINKS /* add parent links to jsmn_tok, which are needed */
+#define JSMN_STRICT  /* parse json in strict mode */
 #include "jsmn.h"
 #include "ntl.h"
 #include "debug.h"
@@ -122,7 +122,7 @@ void addr_to_lnc (char *json, size_t size,
   while (pos < addr) {
     if (*pos == '\n') {
       l++;
-      c = 0; // reset column
+      c = 0; /* reset column */
     }
     pos++;
     c++;
@@ -142,7 +142,7 @@ static void assert_is_pointer(void * p)
    * p is a legit pointer.
    */
   char * x = (char *)p;
-  static char c; //has to be a static variable such that compilers won't remove them
+  static char c; /*has to be a static variable such that compilers won't remove them*/
   c = *x;
   (void)c;
 }
@@ -203,7 +203,7 @@ static char POP(struct stack * s)
 
 struct access_path {
   struct sized_buffer key;
-  bool is_star; // match any key and get its value
+  bool is_star; /* match any key and get its value */
   struct access_path * next;
 };
 
@@ -268,7 +268,7 @@ struct fmt_arg {
   union {
     void * ptr;
     int  integer;
-    //double real;
+    /*double real; */
   }_;
 };
 struct action {
@@ -282,9 +282,9 @@ struct action {
    * must be a pointer, and it cannot be NULL
    * this can be NULL or its value can be UNDEFINED
    */
-  struct fmt_arg fmt_args[8]; // no more than 8 arguments
+  struct fmt_arg fmt_args[8]; /* no more than 8 arguments */
   void * operand;
-  struct size_specifier mem_size; // this designates the memory size of _;
+  struct size_specifier mem_size; /* this designates the memory size of _; */
   void *key;
 };
 
@@ -301,8 +301,8 @@ struct ptr_map {
   int  enabled;
   bool has_this;
   bool has_enabler;
-  int next_idx; // only used for recorder
-  int xend_idx; // exclusive end index
+  int next_idx; /* only used for recorder */
+  int xend_idx; /* exclusive end index */
 };
 
 
@@ -374,7 +374,7 @@ add_defined (struct ptr_map **s, void *p)
 
   void **v = m->arg;
   if (m->next_idx < m->xend_idx) {
-    //fprintf(stderr, "&arg %p, arg %p\n", &m->arg, m->arg);
+    /*fprintf(stderr, "&arg %p, arg %p\n", &m->arg, m->arg); */
     v[m->next_idx] = p;
     m->next_idx ++;
   }
@@ -462,7 +462,7 @@ struct sized_value {
 };
 
 struct composite_value {
-  int is_object; // otherwise, it is an array
+  int is_object; /* otherwise, it is an array */
   union {
     struct sized_value elements;
     struct sized_access_path_value pairs;
@@ -524,7 +524,7 @@ static int has_format_string (char * pos, char * end_pos)
       pos ++;
       switch (*pos)
       {
-        case '%': // escaped %
+        case '%': /* escaped % */
           pos++;
           break;
         case '.':
@@ -533,7 +533,7 @@ static int has_format_string (char * pos, char * end_pos)
             pos += 3;
           }
           break;
-        default: // other format string
+        default: /* other format string */
           count ++;
           pos ++;
           break;
@@ -559,28 +559,28 @@ static int is_primitive (
   *type = V_PRIMITIVE;
   switch (c)
   {
-    case 't': // true
+    case 't': /* true */
       if (pos + 3 < end_pos
           && 'r' == pos[1] && 'u' == pos[2] && 'e' == pos[3]) {
         pos += 4;
         goto return_true;
       }
       break;
-    case 'f': // false
+    case 'f': /* false */
       if (pos + 4 < end_pos
           && 'a' == pos[1] && 'l' == pos[2] && 's' == pos[3] && 'e' == pos[4]) {
         pos += 5;
         goto return_true;
       }
       break;
-    case 'n': // null
+    case 'n': /* null */
       if (pos + 3 < end_pos
           && 'u' == pos[1] && 'l' == pos[2] && 'l' == pos[3]) {
         pos += 4;
         goto return_true;
       }
       break;
-    case '"': // a string literal
+    case '"': /* a string literal */
       *type = V_STRING_LITERAL;
       pos ++;
       while (pos < end_pos) {
@@ -589,7 +589,7 @@ static int is_primitive (
           goto return_true;
       }
       break;
-    case '|': // a proprietary string literal
+    case '|': /* a proprietary string literal */
       if (0 == strncmp("|F|", pos, 3)) {
         *type = V_ACTION;
         return 0;
@@ -642,7 +642,7 @@ parse_size_specifier (
 
     p->tag = SIZE_FIXED;
     p->size = fixed_size;
-    *next_pos_p = x; // jump to the end of number
+    *next_pos_p = x; /* jump to the end of number */
     return 1;
   }
   else if (pos + 1 < end_pos && '.' == *pos && '*' == *(pos+1)) {
@@ -674,7 +674,7 @@ parse_value(
     p->_.primitve.start = pos;
     p->_.primitve.size = next_pos - pos;
     if (v_type == V_STRING_LITERAL) {
-      // skip the two delimiter
+      /* skip the two delimiter */
       p->_.primitve.start ++;
       p->_.primitve.size -= 2;
       int n = has_format_string(p->_.primitve.start,
@@ -962,7 +962,7 @@ parse_access_path_value(
     curr_path->is_star = true;
 
   if (')' == *pos)
-    ++pos; // eat up ')'
+    ++pos; /* eat up ')' */
   SKIP_SPACES(pos, end_pos);
   struct access_path * next_path;
   switch (*pos)
@@ -976,7 +976,7 @@ parse_access_path_value(
       curr_path->next = next_path;
       return parse_access_path_value(stack, pos, end_pos - pos, av, next_path);
     case ':':
-      ++pos; // eat up ':'
+      ++pos; /* eat up ':' */
       SKIP_SPACES(pos, end_pos);
       if ('[' == *pos || '{' == *pos) {
         struct composite_value * cv = composite_value_alloc();
@@ -1128,7 +1128,7 @@ parse_actor(
   size_t size,
   struct composite_value * cv)
 {
-  // work around the incompatible pointer warning
+  /* work around the incompatible pointer warning */
   char * const start_pos = pos, * const end_pos = pos + size;
   SKIP_SPACES(pos, end_pos);
   while (pos < end_pos) {
@@ -1198,8 +1198,8 @@ get_value_operand_addrs (struct value *v, struct operand_addrs *rec)
           if (act->tag > ACT_FORMAT_STRING) {
             int n = act->tag - ACT_FORMAT_STRING;
             for (int i = 0; i < n; i++) {
-              //@todo analyze native format string
-              // to find out the argument types
+              /*@todo analyze native format string
+                to find out the argument types */
               rec->addrs[rec->pos] = &act->fmt_args[i]._;
               rec->may_not_be_ptr[rec->pos] = 1;
               rec->pos ++;
@@ -1223,8 +1223,9 @@ get_composite_value_operand_addrs (
 {
   struct access_path_value *apv;
   struct value *v;
+  size_t i;
   if(cv->is_object)
-    for (size_t i = 0; i < cv->_.pairs.size; i++) {
+    for (i = 0; i < cv->_.pairs.size; i++) {
       apv = cv->_.pairs.pos + i;
       if (apv->path.is_star && apv->path.next == NULL) {
         rec->addrs[rec->pos] = &(apv->value._.action.key);
@@ -1234,12 +1235,12 @@ get_composite_value_operand_addrs (
       get_value_operand_addrs(&apv->value, rec);
     }
   else
-    for (size_t i = 0; i < cv->_.elements.size; i++) {
+    for (i = 0; i < cv->_.elements.size; i++) {
       v = cv->_.elements.pos + i;
       get_value_operand_addrs(v, rec);
     }
 
-  for (int i = 0; cv->maps[i]; i++) {
+  for (i = 0; cv->maps[i]; i++) {
     struct ptr_map *m = cv->maps[i];
 
     if (!m->has_this)
@@ -1288,10 +1289,11 @@ static void  free_composite_value (struct composite_value *cv)
 {
   struct access_path_value *apv;
   struct value *v;
+  size_t i;
   if(cv->is_object) {
     if (NULL == cv->_.pairs.pos)
       return;
-    for (size_t i = 0; i < cv->_.pairs.size; i++) {
+    for (i = 0; i < cv->_.pairs.size; i++) {
       apv = cv->_.pairs.pos + i;
       free_access_path_value(apv);
     }
@@ -1300,7 +1302,7 @@ static void  free_composite_value (struct composite_value *cv)
   else {
     if (NULL == cv->_.elements.pos)
       return;
-    for (size_t i = 0; i < cv->_.elements.size; i++) {
+    for (i = 0; i < cv->_.elements.size; i++) {
       v = cv->_.elements.pos + i;
       free_value(v);
     }
@@ -1497,7 +1499,7 @@ inject_format_string (
       ERR("format string '%s' has %d, which is more than 8 arguments\n",
           format, n);
   }
-  //@todo we should escape p
+  /*@todo we should escape p */
   int ret = snprintf(pos, size, "\"%s\"", p);
   free(p);
   free(format);
@@ -1598,7 +1600,7 @@ inject_access_path_value (
                         ap->path.key.start);
   pos = info->next_pos;
   if (ap->path.next) {
-    // @todo
+    /* @todo */
     ERR("does not support %.*s.%.*s yet\n",
         (int)ap->path.key.size, ap->path.key.start,
         (int)ap->path.next->key.size, ap->path.next->key.start);
@@ -1671,19 +1673,20 @@ inject_composite_value (
   size_t used_bytes = 0, count;
   struct access_path_value * apv;
   struct value * v;
+  size_t i, j;
 
   if (cv->is_object) {
     used_bytes += xprintf(pos, end_pos - pos, info, "{");
     pos = info->next_pos;
 
     count = cv->_.pairs.size;
-    for (size_t i = 0; i < cv->_.pairs.size; i++) {
+    for (i = 0; i < cv->_.pairs.size; i++) {
       apv = cv->_.pairs.pos + i;
       if (!has_value(info, &apv->value))
         count--;
     }
 
-    for (size_t i = 0, j = 0; i < cv->_.pairs.size; i++) {
+    for (i = 0, j = 0; i < cv->_.pairs.size; i++) {
       apv = cv->_.pairs.pos + i;
       if (!has_value(info, &apv->value)) continue;
 
@@ -1703,12 +1706,12 @@ inject_composite_value (
     pos = info->next_pos;
 
     count = cv->_.elements.size;
-    for (size_t i = 0; i < cv->_.elements.size; i++) {
+    for (i = 0; i < cv->_.elements.size; i++) {
       v = cv->_.elements.pos + i;
       if (!has_value(info, v)) count--;
     }
 
-    for (size_t i = 0, j = 0; i < cv->_.elements.size; i++) {
+    for (i = 0, j = 0; i < cv->_.elements.size; i++) {
       v = cv->_.elements.pos + i;
       if (!has_value(info, v)) continue;
 
@@ -1746,8 +1749,9 @@ prepare_actor(
   }
   memset(operand_addrs, 0, sizeof(*operand_addrs));
   get_composite_value_operand_addrs(cv, operand_addrs);
+  size_t i;
 
-  for (size_t i = 0; i < operand_addrs->pos; i++) {
+  for (i = 0; i < operand_addrs->pos; i++) {
     switch (operand_addrs->types[i])
     {
       case ARG_PTR:
@@ -1861,7 +1865,7 @@ static char* type_to_string(jsmntype_t type)
     case JSMN_PRIMITIVE:  return "primitive";
     default:              ERR("Unknown JSMN_XXXX type encountered (code: %d)", type);
   }
-  return NULL; // avoid warning
+  return NULL; /* avoid warning */
 }
 
 static void
@@ -1890,7 +1894,7 @@ static char * copy_over_string (size_t * new_size, char * str, size_t len)
     return new_str;
   }
   else {
-    // ill formed string
+    /* ill formed string */
     char * p = NULL;
     asprintf(&p, "cannot unescape an ill-formed-string %.*s", (int)len, str);
     *new_size = strlen(p) + 1;
@@ -1962,8 +1966,8 @@ static size_t extract_str (struct action * v, int i, struct extraction_info * in
     }
     case SIZE_UNKNOWN:
     {
-      // we have to allow this potential oob write as
-      // we don't know the buffer size of recipient.
+      /* we have to allow this potential oob write as
+         we don't know the buffer size of recipient.*/
       if (is_null) {
         ((char *)v->operand)[0] = 0;
       }
@@ -1982,7 +1986,7 @@ static size_t extract_str (struct action * v, int i, struct extraction_info * in
 static size_t extract_scalar (struct action * a, int i, struct extraction_info * info)
 {
   jsmntok_t * tokens = info->tokens;
-  char * json = info->pos, * xend; // exclusive end
+  char * json = info->pos, * xend; /* exclusive end */
   if (tokens[i].type != JSMN_PRIMITIVE && tokens[i].type != JSMN_STRING) {
     if (strong_type) {
       print_tok(stderr, json, tokens, i);
@@ -2178,7 +2182,7 @@ static size_t apply_extraction(struct value *v, int idx, struct extraction_info 
   else {
     if (tokens[idx].type == JSMN_PRIMITIVE
         && (0 == strncmp(json + tokens[idx].start, "null", 4))) {
-      //es->is_applied = false;
+      /*es->is_applied = false;*/
       return 0;
     }
     else if (0 == tokens[idx].size
@@ -2256,10 +2260,10 @@ extract_access_path (
           if (i != tokens[ic].parent)
             continue;
 
-          // top level key within tokens[i]
+          /* top level key within tokens[i] */
           if (0 == keycmp(json, &tokens[ic], &curr_path->key)) {
-            // fpri ntf(stderr, "> %.*s == ", curr_path->key.size, curr_path->key.start);
-            // print_tok(stderr, json, t, ic);
+            /* fpri ntf(stderr, "> %.*s == ", curr_path->key.size, curr_path->key.start);
+               print_tok(stderr, json, t, ic); */
             return extract_access_path(ic + 1, apv, curr_path->next, info);
           }
         }
@@ -2275,7 +2279,7 @@ extract_access_path (
         ASSERT_S(index >= 0, "Index is not zero or positive");
         ASSERT_S(index < tokens[i].size, "Index is out-of-bound");
 
-        ic = i + 1; // the first child of i;
+        ic = i + 1; /* the first child of i; */
         if (ic < n_toks)
           return extract_access_path(ic + index, apv, curr_path->next, info);
         else
@@ -2290,9 +2294,9 @@ extract_access_path (
   int ret = extract_value(v, val_idx, info);
   apv->value.is_applied = true;
   if (ret) {
-    //print_access_path_value(stderr, apv);
-    //fprintf(stderr, "< matched: ");
-    //print_tok(stderr, json, t, val_idx);
+    /*print_access_path_value(stderr, apv); */
+    /*fprintf(stderr, "< matched: "); */
+    /*print_tok(stderr, json, t, val_idx); */
   }
   return ret;
 }
@@ -2314,8 +2318,8 @@ extract_object_value (
     if (tokens[key_idx].type != JSMN_STRING) {
       print_tok(stderr, json, tokens, key_idx);
     }
-    ASSERT_S(tokens[key_idx].type == JSMN_STRING, "Not a key"); // make sure it's a key
-    ASSERT_S(tokens[key_idx].parent == parent, "Token is not at top level"); // make sure it's at the toplevel
+    ASSERT_S(tokens[key_idx].type == JSMN_STRING, "Not a key"); /* make sure it's a key */
+    ASSERT_S(tokens[key_idx].parent == parent, "Token is not at top level"); /* make sure it's at the toplevel */
 
     val_idx = key_idx + 1;
     for (size_t i = 0; i < cv->_.pairs.size; i++) {
@@ -2324,8 +2328,8 @@ extract_object_value (
         continue;
 
       if (0 == keycmp(json, &tokens[key_idx], &p->path.key)) {
-        //fprintf(stderr, "> %.*s == ", p->path.key.size, p->path.key.start);
-        //print_tok(stderr, json, t, key_idx);
+        /*fprintf(stderr, "> %.*s == ", p->path.key.size, p->path.key.start);
+          print_tok(stderr, json, t, key_idx); */
         ret += extract_access_path(val_idx, p, p->path.next, info);
       }
       else if (p->path.is_star) {
@@ -2338,8 +2342,8 @@ extract_object_value (
 
     nkeys ++;
     if (nkeys < n) {
-      // find the next key
-      key_idx = val_idx + 1;  // this might not be a key
+      /* find the next key */
+      key_idx = val_idx + 1;  /* this might not be a key */
       while (tokens[key_idx].parent != parent) key_idx ++;
     }
     else
@@ -2383,7 +2387,7 @@ extract_array_value (
 
   int child_no, ic;
   for (child_no = 0, ic = parent + 1; child_no < n; ic++) {
-    if (tokens[ic].parent != parent)  // not a child
+    if (tokens[ic].parent != parent)  /* not a child */
       continue;
 
     if (v) {
@@ -2425,7 +2429,7 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
 
   jsmn_parser parser;
 
-  //calculate how many tokens are needed
+  /*calculate how many tokens are needed */
   jsmn_init(&parser);
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   JSMN_CHECK(num_tok, json, size);
@@ -2433,7 +2437,7 @@ json_vextract(char * json, size_t size, char * extractor, va_list ap)
 
   jsmntok_t * tokens = malloc(sizeof(jsmntok_t) * num_tok);
 
-  //fetch tokens
+  /*fetch tokens */
   jsmn_init(&parser);
   num_tok = jsmn_parse(&parser, json, size, tokens, num_tok);
   JSMN_CHECK(num_tok, json, size);
@@ -2515,12 +2519,12 @@ parse_key_value(
   av->path.key.size = len;
 
   if (')' == *pos)
-    ++pos; // eat up ')'
+    ++pos; /* eat up ')' */
   SKIP_SPACES(pos, end_pos);
   switch (*pos)
   {
     case ':':
-      ++pos; // eat up ':'
+      ++pos; /* eat up ':' */
       if (parse_value(stack, pos, end_pos - pos, &av->value, &next_pos))
         pos = next_pos;
       else
@@ -2599,10 +2603,10 @@ inject_query_key_value_list (
   struct injection_info * info)
 {
   char * const end_pos = pos + size;
-  size_t used_bytes = 0, count;
+  size_t used_bytes = 0, count, i, j;
 
   count = cv->_.pairs.size;
-  for (size_t i = 0; i < cv->_.pairs.size; i++) {
+  for (i = 0; i < cv->_.pairs.size; i++) {
     struct access_path_value *p = cv->_.pairs.pos + i;
     if (!has_value(info, &p->value))
       count--;
@@ -2617,7 +2621,7 @@ inject_query_key_value_list (
     pos = info->next_pos;
   }
 
-  for (size_t i = 0, j = 0; i < cv->_.pairs.size; i++) {
+  for (i = 0, j = 0; i < cv->_.pairs.size; i++) {
     struct access_path_value *p = cv->_.pairs.pos + i;
     if (!has_value(info, &p->value)) continue;
 
@@ -2693,7 +2697,7 @@ json_to_sized_buffer_ntl(char *json, size_t size, NTL_T(struct sized_buffer) *p)
     ERR("Found %d, Object or array expected", tokens[0].type);
 
   for (int i = 0; i < num_tok; i++) {
-    //print_tok(stderr, json, tokens, i);
+    /*print_tok(stderr, json, tokens, i); */
   }
 
   struct sized_buffer **token_array = NULL;

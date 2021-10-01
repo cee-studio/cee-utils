@@ -28,7 +28,7 @@ get_log_level(char level[])
   if (0 == strcasecmp(level, "ERROR")) return LOG_ERROR;
   if (0 == strcasecmp(level, "FATAL")) return LOG_FATAL;
   ERR("Log level doesn't exist: %s", level);
-  return 0;// make compiler happy
+  return 0;/* make compiler happy */
 }
 
 static void
@@ -70,11 +70,11 @@ module_is_disabled(struct logconf *conf)
 
   for (int i=0; conf->disable_modules[i]; ++i) {
     if (0 == strcmp(conf->id, conf->disable_modules[i]->value)) {
-      // reset presets (if any)
+      /* reset presets (if any) */
       memset(&conf->L, 0, sizeof conf->L);
-      // silence output
+      /* silence output */
       _log_set_quiet(&conf->L, true);
-      // make sure fatal still prints to stderr
+      /* make sure fatal still prints to stderr */
       _log_add_callback(&conf->L, &log_nocolor_cb, stderr, LOG_FATAL);
       return true; /* EARLY RETURN */
     }
@@ -99,7 +99,7 @@ logconf_http(
   if (!conf || !conf->http || !conf->http->f) 
     goto _end;
 
-  // Build 'label' string
+  /* Build 'label' string */
   char label[512];
   va_list label_args;
   va_start(label_args, label_fmt);
@@ -107,32 +107,32 @@ logconf_http(
   ASSERT_S(ret < sizeof(label), "Out of bounds write attempt");
   va_end(label_args);
 
-  // Get timestamp string
+  /* Get timestamp string */
   char timestr[64];
   cee_unix_ms_to_iso8601(timestr, sizeof(timestr), &tstamp_ms);
 
-  // Print to output
+  /* Print to output */
   fprintf(conf->http->f, 
     "%s [%s #TID%u] - %s - %s\n"
     "%.*s%s%.*s\n"
     "@@@_%zu_@@@\n",
-// 1st LINE ARGS
+/* 1st LINE ARGS */
     label, 
     conf->id, 
     (unsigned)pthread_self(), 
     timestr, 
     url,
-// 2nd LINE ARGS
+/* 2nd LINE ARGS */
     (int)header.size, header.start,
     header.size ? "\n" : "",
     (int)body.size, body.start,
-// 3rd LINE ARGS
+/* 3rd LINE ARGS */
     counter);
 
   fflush(conf->http->f);
 
 _end:
-  // extract logging info if requested
+  /* extract logging info if requested */
   if (p_info) {
     *p_info = (struct loginfo){
       .counter = counter,
@@ -177,7 +177,7 @@ logconf_setup(struct logconf *conf, const char id[], FILE* fp)
                  "(enable):b,"
                  "(filename):.*s,"
                "},"
-               "(http_dump):{" // deprecated
+               "(http_dump):{" /* deprecated */
                  "(enable):b,"
                  "(filename):.*s,"
                "},"
@@ -216,10 +216,10 @@ logconf_setup(struct logconf *conf, const char id[], FILE* fp)
     ASSERT_S(NULL != conf->http->f, "Could not create http logger file");
   }
 
-  // disable default log.c callbacks
+  /* disable default log.c callbacks */
   _log_set_quiet(&conf->L, true);
 
-  // make sure fatal still prints to stderr
+  /* make sure fatal still prints to stderr */
   _log_add_callback(&conf->L,
       l.use_color ? &log_color_cb : &log_nocolor_cb, 
       stderr, 
@@ -292,7 +292,7 @@ struct sized_buffer
 logconf_get_field(struct logconf *conf, char *json_field)
 {
   struct sized_buffer field={0};
-  if (!conf->file.size) return field; // empty field
+  if (!conf->file.size) return field; /* empty field */
 
   char fmt[512];
   int ret = snprintf(fmt, sizeof(fmt), "(%s):T", json_field);

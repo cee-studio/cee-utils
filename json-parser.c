@@ -279,7 +279,7 @@ _json_value_set_string(json_item_t *item, struct _parse_context *cxt)
     size_t size = 0;
     char *str = _json_decode_string(&cxt->buffer, &size);
 
-    char *unstr = NULL; // unescape string
+    char *unstr = NULL; /* unescape string */
     if (!json_string_unescape(&unstr, &item->string.size, str, size)) {
       ERR("(Internal Error) Cannot unescape an ill-formed-string %.*s", (int)size, str);
     }
@@ -309,7 +309,7 @@ _json_value_set_null(json_item_t *item, struct _parse_context *cxt)
     _json_decode_null(&cxt->buffer);
 }
 
-inline static size_t
+static size_t
 _json_count_property(char *buffer)
 {
     /* skips the item and all of its nests, special care is taken for any
@@ -359,7 +359,7 @@ _json_value_set_object(json_item_t *item, struct _parse_context *cxt)
     item->comp = _json_decode_composite(&cxt->buffer, _json_count_property(cxt->buffer));
 }
 
-inline static size_t
+static size_t
 _json_count_element(char *buffer)
 {
     /* skips the item and all of its nests, special care is taken for any
@@ -647,7 +647,7 @@ json_parse(char *buffer, size_t len)
     return root;
 }
 
-static inline json_item_t*
+static json_item_t*
 _json_new(const char *key, enum json_type type)
 {
     json_item_t *new_item = malloc(sizeof *new_item);
@@ -717,7 +717,7 @@ cleanupA:
     return NULL;
 }
 
-inline static json_item_t*
+static json_item_t*
 _json_composite(const char *key, enum json_type type)
 {
     json_item_t *new_item = _json_new(key, type);
@@ -808,7 +808,7 @@ cleanupA:
 }
 
 /* return next (not yet accessed) item, by using item->comp->last_accessed_branch as the branch index */
-static inline json_item_t*
+static json_item_t*
 _json_push(json_item_t *item)
 {
     ASSERT_S(IS_COMPOSITE(item), "Not a composite");
@@ -825,7 +825,7 @@ _json_push(json_item_t *item)
     return next_item;
 }
 
-static inline json_item_t*
+static json_item_t*
 _json_pop(json_item_t *item)
 {
     if (IS_COMPOSITE(item)){
@@ -974,9 +974,9 @@ json_get_child(json_item_t *item, const char *key)
                 return ji->comp->branch[i];
             }
             if ('.' == key[len]) { /* parent keys are equal */
-                ji = ji->comp->branch[i]; // get child
-                i = 0; // reset branch counter
-                key += len+1; // skip to next key
+                ji = ji->comp->branch[i]; /* get child */
+                i = 0; /* reset branch counter */
+                key += len+1; /* skip to next key */
                 continue;
             }
         }
@@ -1026,19 +1026,18 @@ long
 json_get_index(const json_item_t *item, const char *key)
 {
     ASSERT_S(IS_COMPOSITE(item), "Not a composite");
-
+    size_t i;
     json_item_t *lookup_item = NULL;
-    for (size_t i=0; i < item->comp->num_branch; ++i) {
+    for (i=0; i < item->comp->num_branch; ++i) {
         if (STREQ(item->comp->branch[i]->key, key)) {
             lookup_item = item->comp->branch[i];
             break;
         }
     }
     if (NULL == lookup_item) return -1;
-
     /* @todo currently this is O(n), a possible alternative
      *  is adding a new attribute that stores the item's index */
-    for (size_t i=0; i < item->comp->num_branch; ++i){
+    for (i=0; i < item->comp->num_branch; ++i){
         if (lookup_item == item->comp->branch[i]){
             return i;
         }

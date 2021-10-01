@@ -8,17 +8,17 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
+#endif /* __cplusplus */
 
 
 /* UTILITY MACROS */
 #define STREQ(str1, str2) (0 == strcmp(str1, str2))
 #define STRNEQ(str1, str2, n) (0 == strncmp(str1, str2, n))
-//check if string is empty
+/*check if string is empty */
 #define IS_EMPTY_STRING(str) (!(str) || !*(str))
-//if case matches return token as string
+/*if case matches return token as string */
 #define CASE_RETURN_STR(opcode) case opcode: return #opcode
-//if str matches enum token, return enum value
+/*if str matches enum token, return enum value */
 #define STREQ_RETURN_ENUM(enum, str) if(STREQ(#enum, str))return enum
 
 
@@ -49,6 +49,6 @@ void cee_gen_dirname(char *linkbuf);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif /* __cplusplus */
 
-#endif //CEE_UTILS_H
+#endif /*CEE_UTILS_H */

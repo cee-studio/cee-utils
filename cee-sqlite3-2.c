@@ -121,4 +121,4 @@ cee_sqlite3_insert_or_update(struct cee_state *state,
   sqlite3_exec(db, "end transaction;", NULL, NULL, NULL);
   return result;
 }
-#endif // CEE_USE_SQLITE3_2
+#endif /* CEE_USE_SQLITE3_2 */

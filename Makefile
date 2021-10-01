@@ -7,7 +7,7 @@ OBJS := $(SRC:%.c=$(OBJDIR)/%.o)
 TEST_SRC  := $(wildcard test/test-*.c)
 TEST_EXES := $(TEST_SRC:%.c=%.exe)
 
-CFLAGS += -Wall -std=c11 -O0 -g \
+CFLAGS += -Wall -std=c89 -O0 -g \
 	-Wno-unused-function \
 	-I./ -DLOG_USE_COLOR
 ifneq ($(release),1)

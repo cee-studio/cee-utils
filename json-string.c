@@ -44,7 +44,7 @@ json_string_escape(size_t *output_len_p, char *input, size_t input_len)
       int i;
       for (i = 0; escaped[i]; i++) {
         if (NULL == output_start)
-          // count how many extra bytes are needed
+          /* count how many extra bytes are needed */
           continue;
 
         *output = escaped[i];
@@ -65,7 +65,7 @@ json_string_escape(size_t *output_len_p, char *input, size_t input_len)
    * 1 iteration reach here
    */
   *output_len_p = input_len + extra_bytes;
-  if (0 == extra_bytes) { // no need to escape
+  if (0 == extra_bytes) { /* no need to escape */
     return input_start;
   }
   else {
@@ -82,7 +82,7 @@ utf_valid(uint32_t v)
 {
   if(v>0x10FFFF)
     return false;
-  if(0xD800 <=v && v<= 0xDFFF) // surrogates
+  if(0xD800 <=v && v<= 0xDFFF) /* surrogates */
     return false;
   return true;
 }
@@ -127,8 +127,9 @@ utf8_width(uint32_t value)
   }
 }
 
-// See RFC 3629
-// Based on: http://www.w3.org/International/questions/qa-forms-utf-8
+/* See RFC 3629
+   Based on: http://www.w3.org/International/questions/qa-forms-utf-8
+*/
 static uint32_t
 next(char ** p, char * e, bool html)
 {
@@ -138,16 +139,16 @@ next(char ** p, char * e, bool html)
   unsigned char lead = **p;
   (*p)++;
 
-  // First byte is fully validated here
+  /* First byte is fully validated here */
   int trail_size = utf8_trail_length(lead);
 
   if(trail_size < 0)
     return utf_illegal;
 
-  //
-  // Ok as only ASCII may be of size = 0
-  // also optimize for ASCII text
-  //
+  /*
+    Ok as only ASCII may be of size = 0
+    also optimize for ASCII text
+  */
   if(trail_size == 0) {
     if(!html || (lead >= 0x20 && lead!=0x7F) || lead==0x9 || lead==0x0A || lead==0x0D)
       return lead;
@@ -156,7 +157,7 @@ next(char ** p, char * e, bool html)
 
   uint32_t c = lead & ((1<<(6-trail_size))-1);
 
-  // Read the rest
+  /* Read the rest */
   unsigned char tmp;
   switch(trail_size) {
     case 3:
@@ -185,19 +186,19 @@ next(char ** p, char * e, bool html)
       c = (c << 6) | ( tmp & 0x3F);
   }
 
-  // Check code point validity: no surrogates and
-  // valid range
+  /* Check code point validity: no surrogates and
+     valid range */
   if(!utf_valid(c))
     return utf_illegal;
 
-  // make sure it is the most compact representation
+  /* make sure it is the most compact representation */
   if(utf8_width(c)!=trail_size + 1)
     return utf_illegal;
 
   if(html && c<0xA0)
     return utf_illegal;
   return c;
-} // valid
+} /* valid */
 
 
 static bool
@@ -218,7 +219,7 @@ struct utf8_seq {
 static void
 utf8_encode(uint32_t value, struct utf8_seq *out)
 {
-  //struct utf8_seq out={0};
+  /*struct utf8_seq out={0}; */
   if(value <=0x7F) {
     out->c[0]=value;
     out->len=1;
@@ -324,11 +325,11 @@ second_iter:
     if('\\' == c) {
       if (TESTING == state) {
         state = ALLOCATING;
-        break; // break the while loop
+        break; /* break the while loop */
       }
 
       if (s == input_end) {
-        //input is not a well-formed json string
+        /*input is not a well-formed json string*/
         goto return_err;
       }
 
@@ -422,7 +423,7 @@ char *url_encode(char *str) {
     if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
       *pbuf++ = *pstr;
     else if (*pstr == ' ') {
-      //*pbuf++ = '+';
+      /**pbuf++ = '+';*/
       *pbuf++ = '%', *pbuf++ = '2', *pbuf++ = '0';
     }
     else

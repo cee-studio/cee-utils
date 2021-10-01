@@ -76,10 +76,10 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
+#endif /* __cplusplus */
 
 struct json_raw_value {
-  //struct sized_buffer buffer;
+  /*struct sized_buffer buffer; */
   int type;
 };
 /*
@@ -235,6 +235,6 @@ json_item_t* json_set_number(json_item_t* item, long double number);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif /* __cplusplus */
 
-#endif //JSON_ACTOR_H
+#endif /*JSON_ACTOR_H */
