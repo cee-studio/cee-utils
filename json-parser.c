@@ -145,7 +145,8 @@ _json_preorder_cleanup(json_item_t *item)
     switch (item->type){
     case JSON_OBJECT:
     case JSON_ARRAY:
-        for (size_t i=0; i < item->comp->num_branch; ++i){
+        size_t i;
+        for (i=0; i < item->comp->num_branch; ++i){
             _json_preorder_cleanup(item->comp->branch[i]);
         }
         _json_composite_cleanup(item);
@@ -1262,7 +1263,9 @@ _json_stringify_preorder(json_item_t *item, enum json_type type, struct _stringi
 
     /* 5th STEP: find first item's branch that matches the given type, and 
         calls the write function on it */
+    size_t j;
     size_t first_index=0;
+
     while (first_index < item->comp->num_branch){
         if (json_typecmp(item->comp->branch[first_index], type) || IS_COMPOSITE(item->comp->branch[first_index])){
             _json_stringify_preorder(item->comp->branch[first_index], type, cxt);
@@ -1273,7 +1276,7 @@ _json_stringify_preorder(json_item_t *item, enum json_type type, struct _stringi
 
     /* 6th STEP: calls the write function on every consecutive branch
         that matches the type criteria, with an added comma before it */
-    for (size_t j = first_index+1; j < item->comp->num_branch; ++j){
+    for (j = first_index+1; j < item->comp->num_branch; ++j){
         /* skips branch that don't fit the criteria */
         if (!json_typecmp(item, type) && !IS_COMPOSITE(item)){
             continue;

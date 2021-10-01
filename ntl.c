@@ -35,7 +35,9 @@ STATIC ntl_t ntl_malloc_init(size_t n_elems,  size_t elem_size, ntl_init_cb init
    * p[n_elems + 1] points to the start of the first element
    */
   char * elem_start = (char *)&p[n_elems + 1];
-  for (size_t i = 0; i < n_elems; i++) {
+  size_t i;
+
+  for (i = 0; i < n_elems; i++) {
     /* p[i] points to the start of ith element. */
     p[i] = (void *)elem_start;
     if (init_cb)
@@ -69,9 +71,12 @@ STATIC ntl_t ntl_calloc_init(size_t n_elems, size_t e_size, ntl_init_cb init_cb)
    * p[elems + 1] is the start of the first element
    */
   char * elem_start = (char *)(&p[n_elems + 1]);
+  int i;
+
   memset(elem_start, 0, n_elems * e_size);
+
   if (init_cb) {
-    for (int i = 0; p[i]; i++)
+    for (i = 0; p[i]; i++)
       init_cb(p[i]);
   }
   return p;
@@ -121,11 +126,13 @@ STATIC ntl_t ntl_realloc_init(ntl_t p, size_t new_n_elems, size_t elem_size, ntl
  */
 STATIC void ntl_free(ntl_t p, ntl_free_cb free_cb)
 {
+  size_t i;
+
   if (p == NULL)
     return;
 
   if (free_cb)
-    for (size_t i = 0; p[i]; i++)
+    for (i = 0; p[i]; i++)
       (*free_cb)(p[i]);
   free(p);
 }
@@ -174,8 +181,9 @@ STATIC size_t ntl_length_max(ntl_t p, size_t max)
 
 STATIC ntl_t ntl_dup(ntl_t p, size_t elem_size)
 {
+  size_t i;
   ntl_t o =  ntl_calloc(ntl_length(p), elem_size);
-  for (size_t i = 0; p[i]; i++)
+  for (i = 0; p[i]; i++)
     memcpy(o[i], p[i], elem_size);
   return o;
 }
@@ -303,12 +311,13 @@ STATIC size_t ntl_to_abuf(char **buf_p, ntl_t p, struct ntl_str_delimiter *d, nt
  */
 STATIC ntl_t ntl_fmap(void *cxt, ntl_t in_list, size_t out_elem_size, elem_converter *f)
 {
+  size_t i;
   if (in_list == NULL)
     return NULL;
 
   ntl_t out_list = ntl_calloc(ntl_length(in_list), out_elem_size);
   if (f)
-    for (size_t i = 0; in_list[i]; i++)
+    for (i = 0; in_list[i]; i++)
       (*f)(cxt, in_list[i], out_list[i]);
 
   return out_list;
@@ -360,11 +369,12 @@ STATIC size_t ntl_from_buf(char *buf, size_t len, struct ntl_deserializer *deser
     return 0;
   }
 
+  size_t i;
   size_t n_elems = ntl_length((void **)elem_bufs);
   ntl_t new_ntl =
     ntl_calloc_init(n_elems, deserializer->elem_size, deserializer->init_elem);
 
-  for (size_t i=0; elem_bufs[i]; ++i)
+  for (i=0; elem_bufs[i]; ++i)
     (*deserializer->elem_from_buf)(
       elem_bufs[i]->start,
       elem_bufs[i]->size,
@@ -385,10 +395,11 @@ STATIC size_t ntl_from_buf2(char *buf, size_t len, struct ntl_deserializer *dese
   }
 
   size_t n_elems = ntl_length((void **)elem_bufs);
+  size_t i;
   ntl_t new_ntl =
     ntl_calloc_init(n_elems, deserializer->elem_size, deserializer->init_elem);
 
-  for (size_t i=0; elem_bufs[i]; ++i)
+  for (i=0; elem_bufs[i]; ++i)
     (*deserializer->elem_from_buf)(
       elem_bufs[i]->start,
       elem_bufs[i]->size,
@@ -401,10 +412,12 @@ STATIC size_t ntl_from_buf2(char *buf, size_t len, struct ntl_deserializer *dese
 
 STATIC int ntl_is_a_member(ntl_t p, void *addr)
 {
+  size_t i;
+
   if (p == NULL)
     return 0;
 
-  for (size_t i = 0; p[i]; i++)
+  for (i = 0; p[i]; i++)
     if (p[i] == addr)
       return 1;
 

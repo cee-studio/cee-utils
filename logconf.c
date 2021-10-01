@@ -66,9 +66,10 @@ log_color_cb(log_Event *ev)
 static bool
 module_is_disabled(struct logconf *conf)
 {
+  int i;
   if (!conf->disable_modules) return false;
 
-  for (int i=0; conf->disable_modules[i]; ++i) {
+  for (i=0; conf->disable_modules[i]; ++i) {
     if (0 == strcmp(conf->id, conf->disable_modules[i]->value)) {
       /* reset presets (if any) */
       memset(&conf->L, 0, sizeof conf->L);

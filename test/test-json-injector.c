@@ -94,14 +94,14 @@ int main () {
 
   char * injector1 = "(k1) : s, (k2) : { (1): b }, (k3) : f @arg_switches";
 
-  // print out k1
+  /* print out k1 */
   B[0] = t;
   json_inject(bigbuf, sizeof(bigbuf),
               injector1,
               t, &b, &f, B, sizeof(B));
   fprintf(stderr, "%s\n", bigbuf);
 
-  // print out k1 and k3
+  /* print out k1 and k3 */
   B[1] = &f;
   json_inject(bigbuf, sizeof(bigbuf),
               injector1,
@@ -109,7 +109,7 @@ int main () {
 
   fprintf(stderr, "%s\n", bigbuf);
 
-  // print out k1, k2, and k3
+  /* print out k1, k2, and k3 */
   B[1] = &f;
   B[2] = &b;
   json_inject(bigbuf, sizeof(bigbuf),
@@ -188,7 +188,7 @@ int main () {
   int intents = 10;
   char * payload = NULL;
   json_ainject(&payload,
-               "(op) : 2" // IDENTIFY OP
+               "(op) : 2" /* IDENTIFY OP */
                "(d) : {"
                  "(token) : s"
                  "(intents) : d"

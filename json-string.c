@@ -14,13 +14,14 @@ json_string_escape(size_t *output_len_p, char *input, size_t input_len)
   char * const input_start = input, * const input_end = input + input_len;
   char * output_start = NULL, * output = NULL;
   char * escaped = NULL, buf[8] = "\\u00";
+  char * s;
 
   /*
    * 1st iteration, output is NULL and count extra_bytes needed for escaping
    * 2st iteration, output is not NULL, and does escaing.
    */
   second_iter:
-  for (char * s = input_start; s < input_end; s++) {
+  for (s = input_start; s < input_end; s++) {
     escaped = NULL;
     unsigned char c = * s;
     switch (c) {
@@ -285,9 +286,10 @@ static uint32_t utf16_combine_surrogate(uint16_t w1,uint16_t w2)
 
 static void * append (uint32_t x, char *d)
 {
+  unsigned i;
   struct utf8_seq seq = { {0}, 0 };
   utf8_encode(x, &seq);
-  for (unsigned i = 0; i < seq.len; ++i, d++)
+  for (i = 0; i < seq.len; ++i, d++)
     *d = seq.c[i];
   return d;
 }

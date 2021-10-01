@@ -68,7 +68,7 @@ int main()
 
   struct {
     struct {
-      char token[512]; // set it to long enough
+      char token[512]; /* set it to long enough */
     } discord;
     struct {
       char username[512];

@@ -35,6 +35,7 @@ TEST expect_escaped_equal_original(char str[])
 
 SUITE(check_json_string)
 {
+  int i;
   char scp_list[][2][256] = {
     {"string", "Hello\bThere\n"},
     {"UTF8", "🆗🅰️ЈÐ"}
@@ -44,13 +45,13 @@ SUITE(check_json_string)
     {"UTF8", "\\ud83d\\udcac" }
   };
 
-  for (int i=0; i < sizeof scp_list / sizeof *scp_list; ++i) {
+  for (i=0; i < sizeof scp_list / sizeof *scp_list; ++i) {
     greatest_set_test_suffix(scp_list[i][0]);
-    RUN_TESTp(expect_unescaped_equal_original, scp_list[i][1]);
+    RUN_TEST1(expect_unescaped_equal_original, scp_list[i][1]);
   }
-  for (int i=0; i < sizeof unscp_list / sizeof *unscp_list; ++i) {
+  for (i=0; i < sizeof unscp_list / sizeof *unscp_list; ++i) {
     greatest_set_test_suffix(unscp_list[i][0]);
-    RUN_TESTp(expect_escaped_equal_original, unscp_list[i][1]);
+    RUN_TEST1(expect_escaped_equal_original, unscp_list[i][1]);
   }
 }
 

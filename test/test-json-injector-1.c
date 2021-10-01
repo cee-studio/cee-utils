@@ -30,7 +30,7 @@ int main ()
               content, A, sizeof(A));
   fprintf(stderr, "%s\n", bigbuf);
 
-  //content = NULL;
+  /* content = NULL; */
   A[0] = NULL;
   json_inject(bigbuf, sizeof(bigbuf), "(content):s @arg_switches",
               content, A, sizeof(A));

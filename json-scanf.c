@@ -758,7 +758,9 @@ json_scanf(char *buffer, size_t buf_size, char *format, ...)
     else
       has_values = (void **) capture_existance->recipient;
 
-    for (size_t i = 0, j = 0; i < num_keys; i++) {
+    size_t i;
+    size_t j;
+    for (i = 0, j = 0; i < num_keys; i++) {
       if (es+i == capture_existance) continue;
 
       if (es[i].is_applied) {

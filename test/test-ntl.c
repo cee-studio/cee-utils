@@ -24,13 +24,16 @@ void print_abc(struct abc * p, int i)
 
 int main ()
 {
+  int i;
   ntl_t p = ntl_malloc_init(10, sizeof(struct abc), init);
 
-  for(int i = 0; p[i]; i++)
+  for(i = 0; p[i]; i++)
     print_abc(p[i], i);
 
   p = ntl_realloc_init(p, 100, sizeof(struct abc), init);
 
-  for(int i = 0; p[i]; i++)
+  for(i = 0; p[i]; i++)
     print_abc(p[i], i);
+
+  return 0;
 }
