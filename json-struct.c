@@ -472,9 +472,11 @@ static int has_enum(NTL_T(struct jc_def) defs)
 
 static char* namespace_to_str(NTL_T(name_t) ns)
 {
+  int i;
   char *buf; size_t len;
   FILE * fp = open_memstream(&buf, &len);
-  for(int i = 0; ns && ns[i]; i++)
+
+  for(i = 0; ns && ns[i]; i++)
     fprintf(fp,"%s.", (char *)ns[i]);
   fclose(fp);
   return buf;
@@ -2084,9 +2086,11 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
   if (FILE_SINGLE_FILE == global_option.type
       || FILE_CODE == global_option.type)
   {
+    int i;
+
     fputs(SPECS_DEPS_H, fp);
     if (d->incl_headers)
-      for (int i=0; d->incl_headers[i]; ++i)
+      for (i=0; d->incl_headers[i]; ++i)
         fprintf(fp, "#include \"%s\"\n", (char*)d->incl_headers[i]);
   }
 
@@ -2105,7 +2109,8 @@ gen_definition_list(
   NTL_T(struct jc_definition) ntl)
 {
   char *fname=NULL;
-  for (int i = 0; ntl && ntl[i]; i++) {
+  int i;
+  for (i = 0; ntl && ntl[i]; i++) {
     struct jc_definition *d = ntl[i];
     char *f = namespace_to_str(d->namespace);
     asprintf(&fname, "%s/%s%s", folder, f, get_file_suffix(global_option.type));

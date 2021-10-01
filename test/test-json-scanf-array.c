@@ -93,7 +93,7 @@ void free_tree_node(void *p) {
     free(tn->url);
 }
 
-static int
+static size_t
 print_array(char * str, size_t len, void * p)
 {
   struct tree_node * n = (struct tree_node *)p;
@@ -115,7 +115,7 @@ print_array(char * str, size_t len, void * p)
                   n->url);
 }
 
-static int
+static size_t
 print_all(char * buf, size_t len, void * p)
 {
   return ntl_to_buf(buf, len, (void **)p, NULL, print_array);
@@ -140,7 +140,7 @@ int main()
   jsmn_init(&parser);
   jsmntok_t * t = NULL;
   int num_tok = jsmn_parse(&parser, array_tok.start, array_tok.size, NULL, 0);
-  //printf("%d\n", num_tok);
+  /*printf("%d\n", num_tok);*/
 
   t = malloc(sizeof(jsmntok_t) * num_tok);
   jsmn_init(&parser);

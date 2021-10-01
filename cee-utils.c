@@ -194,9 +194,10 @@ cee_timestamp_str(char *p_str, int len)
 ssize_t
 cee_str_bounds_check(const char *str, const size_t threshold_len)
 {
+  size_t i;
   if (!str) return -1; /* Missing string */
 
-  for (size_t i=0; i < threshold_len; ++i) {
+  for (i=0; i < threshold_len; ++i) {
     if ('\0' == str[i]) return i; /* bound check succeeded */
   }
   return 0; /* bound check failed */
@@ -205,10 +206,11 @@ cee_str_bounds_check(const char *str, const size_t threshold_len)
 char* 
 cee_join_strings(char** strings, const size_t nmemb, const char delim[], const size_t wordlen, const size_t maxlen)
 {
+  size_t i;
   char *buf = malloc(maxlen);
   char *cur = buf, * const end = cur + maxlen;
 
-  for (size_t i=0; i < nmemb; ++i) {
+  for (i=0; i < nmemb; ++i) {
     VASSERT_S(cee_str_bounds_check(strings[i], wordlen) > 0, \
         "'%s' exceeds threshold of %zu characters", strings[i], wordlen);
     cur += snprintf(cur, end-cur, "%s%s", strings[i], delim);

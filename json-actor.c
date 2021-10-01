@@ -326,7 +326,9 @@ print_ptr_map (FILE *fp, struct ptr_map *m)
 
 static void
 check_ptr_maps(struct ptr_map **m) {
-  for (int i = 0; m[i]; i++) {
+  int i;
+
+  for (i = 0; m[i]; i++) {
     if (m[i]->has_this) {
       if (m[i]->arg == NULL)
         ERR(
@@ -343,7 +345,9 @@ check_ptr_maps(struct ptr_map **m) {
 static struct ptr_map*
 get_arg_switches(struct ptr_map **l)
 {
-  for (int i = 0; l[i]; i++)
+  int i;
+
+  for (i = 0; l[i]; i++)
     if (l[i]->has_this && l[i]->tag == PTR_MAP_ARG_SWITCHES) {
       if (l[i]->has_enabler)
         if (l[i]->enabled)
@@ -359,7 +363,9 @@ get_arg_switches(struct ptr_map **l)
 static struct ptr_map*
 get_record_defined(struct ptr_map **l)
 {
-  for (int i = 0; l[i]; i++)
+  int i;
+
+  for (i = 0; l[i]; i++)
     if (l[i]->has_this && l[i]->tag == PTR_MAP_RECORD_DEFINED)
       return l[i];
   return NULL;
@@ -492,16 +498,18 @@ composite_value_alloc()
 static void
 print_composite_value (FILE * fp, struct composite_value * cv)
 {
+  size_t i;
+
   if (cv->is_object) {
-    for (size_t i = 0; i < cv->_.pairs.size; i++)
+    for (i = 0; i < cv->_.pairs.size; i++)
       print_access_path_value(fp, cv->_.pairs.pos + i);
   }
   else {
-    for (size_t i = 0; i < cv->_.elements.size; i++)
+    for (i = 0; i < cv->_.elements.size; i++)
       print_value(fp, cv->_.elements.pos + i);
   }
 
-  for (int i = 0; cv->maps[i]; i++)
+  for (i = 0; cv->maps[i]; i++)
   {
     struct ptr_map *m = cv->maps[i];
 
@@ -1196,8 +1204,10 @@ get_value_operand_addrs (struct value *v, struct operand_addrs *rec)
           break;
         default:
           if (act->tag > ACT_FORMAT_STRING) {
+            int i;
             int n = act->tag - ACT_FORMAT_STRING;
-            for (int i = 0; i < n; i++) {
+
+            for (i = 0; i < n; i++) {
               /*@todo analyze native format string
                 to find out the argument types */
               rec->addrs[rec->pos] = &act->fmt_args[i]._;
@@ -1626,7 +1636,8 @@ has_value (struct injection_info * info, struct value * v)
   void ** assigned_addrs = arg_switches->arg;
   switch (v->tag) {
     case V_ACTION:
-      for (size_t i = 0; i < arg_switches->xend_idx; i++) {
+      size_t i;
+      for (i = 0; i < arg_switches->xend_idx; i++) {
         assert_is_pointer(v->_.action.operand);
         if (NULL != v->_.action.operand
             && assigned_addrs[i] == v->_.action.operand)
@@ -1638,7 +1649,8 @@ has_value (struct injection_info * info, struct value * v)
       struct composite_value * cv = v->_.cv;
       int has_one = 0;
       if (cv->is_object) {
-        for (size_t i = 0; i < cv->_.pairs.size; i++) {
+        size_t i;
+        for (i = 0; i < cv->_.pairs.size; i++) {
           struct access_path_value *p = cv->_.pairs.pos + i;
           if (has_value(info, &p->value)) {
             has_one = 1;
@@ -1647,7 +1659,8 @@ has_value (struct injection_info * info, struct value * v)
         }
       }
       else {
-        for (size_t i = 0; i < cv->_.elements.size; i++) {
+        size_t i;
+        for (i = 0; i < cv->_.elements.size; i++) {
           struct value * p = cv->_.elements.pos + i;
           if (has_value(info, p)) {
             has_one = 1;
@@ -2315,6 +2328,7 @@ extract_object_value (
   int nkeys = 0, ret = 0, n = tokens[parent].size;
 
   while (1) {
+    size_t i;
     if (tokens[key_idx].type != JSMN_STRING) {
       print_tok(stderr, json, tokens, key_idx);
     }
@@ -2322,7 +2336,7 @@ extract_object_value (
     ASSERT_S(tokens[key_idx].parent == parent, "Token is not at top level"); /* make sure it's at the toplevel */
 
     val_idx = key_idx + 1;
-    for (size_t i = 0; i < cv->_.pairs.size; i++) {
+    for (i = 0; i < cv->_.pairs.size; i++) {
       p = cv->_.pairs.pos + i;
       if (p->value.is_applied)
         continue;
@@ -2376,6 +2390,8 @@ extract_array_value (
   int * children;
   int n = tokens[parent].size;
   size_t ret = 0;
+  size_t i;
+  int child_no, ic;
 
   struct value * v = is_list_extraction(cv);
 
@@ -2385,7 +2401,6 @@ extract_array_value (
   else
     children = malloc(n * sizeof(int));
 
-  int child_no, ic;
   for (child_no = 0, ic = parent + 1; child_no < n; ic++) {
     if (tokens[ic].parent != parent)  /* not a child */
       continue;
@@ -2405,7 +2420,7 @@ extract_array_value (
     return 1;
   }
 
-  for (size_t i = 0; i < cv->_.elements.size && i < (size_t)n; i++) {
+  for (i = 0; i < cv->_.elements.size && i < (size_t)n; i++) {
     v = cv->_.elements.pos + i;
     if (v->is_applied)
       continue;
@@ -2680,10 +2695,12 @@ query_inject(char *query, size_t size, char *injector, ...)
 int
 json_to_sized_buffer_ntl(char *json, size_t size, NTL_T(struct sized_buffer) *p)
 {
+  int i;
+  int num_tok;
   jsmn_parser parser;
   jsmn_init(&parser);
   jsmntok_t * tokens = NULL;
-  int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
+  num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   DS_PRINT("# of tokens = %d", num_tok);
   JSMN_CHECK(num_tok, json, size);
 
@@ -2696,7 +2713,7 @@ json_to_sized_buffer_ntl(char *json, size_t size, NTL_T(struct sized_buffer) *p)
   if (!(tokens[0].type == JSMN_OBJECT || tokens[0].type == JSMN_ARRAY))
     ERR("Found %d, Object or array expected", tokens[0].type);
 
-  for (int i = 0; i < num_tok; i++) {
+  for (i = 0; i < num_tok; i++) {
     /*print_tok(stderr, json, tokens, i); */
   }
 

@@ -12,7 +12,7 @@ GREATEST_MAIN_DEFS();
 SUITE(json_inject_extract);
 
 #define A "Íñdîæ"
-#define B "m\u00fcller"
+#define B "m\\u00fcller"
 #define C "的"
 #define D "😊"
 #define UTF8_JSON "{\"a\":\""A"\",\"b\":\""B"\",\"c\":\""C"\",\"d\":\""D"\"}"
@@ -25,10 +25,10 @@ static char start_string[4096];
 
 TEST expect_json_inject_to_be_working_none(void)
 { 
-  //skip for now in case we want to add this in later
+  /* skip for now in case we want to add this in later */
   SKIP();
 
-  //setup
+  /* setup */
   char start_string[4096] = "{}";
   
   char payload[4096];
@@ -48,7 +48,7 @@ TEST expect_json_extract_to_be_working_single(void)
 
 TEST expect_json_inject_to_be_working_single(void)
 {
-  //setup
+  /* setup */
   char A1[16] = "";
   
   char payload[4096];
