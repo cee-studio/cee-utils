@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <string.h>
-#include <math.h> //for round()
+#include <math.h> /*for round() */
 #include <limits.h>
 #define _POSIX_THREAD_SAFE_FUNCTIONS
 #include <time.h>
@@ -87,33 +87,33 @@ cee_iso8601_to_unix_ms(char *str, size_t len, uint64_t *p_value)
 
   char tz_operator = 'Z';
   int tz_hour = 0, tz_min = 0;
-  sscanf(buf, "%d-%d-%dT%d:%d:%lf%c%d:%d", // ISO-8601 complete format
-    &tm.tm_year, &tm.tm_mon, &tm.tm_mday, // Date
-    &tm.tm_hour, &tm.tm_min, &seconds, // Time
-    &tz_operator, &tz_hour, &tz_min); // Timezone
+  sscanf(buf, "%d-%d-%dT%d:%d:%lf%c%d:%d", /* ISO-8601 complete format */
+    &tm.tm_year, &tm.tm_mon, &tm.tm_mday, /* Date */
+    &tm.tm_hour, &tm.tm_min, &seconds, /* Time */
+    &tz_operator, &tz_hour, &tz_min); /* Timezone */
 
   free(buf);
 
-  tm.tm_mon--; // struct tm takes month from 0 to 11
-  tm.tm_year -= 1900; // struct tm takes years from 1900
+  tm.tm_mon--; /* struct tm takes month from 0 to 11 */
+  tm.tm_year -= 1900; /* struct tm takes years from 1900 */
 
   uint64_t res = (((uint64_t) mktime(&tm) - timezone) * 1000)
               + (uint64_t) round(seconds * 1000.0);
   switch (tz_operator) {
-  case '+': // Add hours and minutes
+  case '+': /* Add hours and minutes */
       res += (tz_hour * 60 + tz_min) * 60 * 1000;
       break;
-  case '-': // Subtract hours and minutes
+  case '-': /* Subtract hours and minutes */
       res -= (tz_hour * 60 + tz_min) * 60 * 1000;
       break;
-  case 'Z': // UTC, don't do anything
-  default: // @todo should we check for error ?
+  case 'Z': /* UTC, don't do anything */
+  default: /* @todo should we check for error ? */
       break;
   }
 
   *p_value = res;
 
-  return 1; // SUCCESS
+  return 1; /* SUCCESS */
 }
 
 int
@@ -127,9 +127,9 @@ cee_unix_ms_to_iso8601(char *str, size_t len, uint64_t *p_value)
   struct tm *tm = localtime_r(&seconds, &buf);
 
   return snprintf(str, len,
-    "%d-%.2d-%dT%.2d:%.2d:%.2d.%.3dZ", // ISO-8601 complete format
-    tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, // Date
-    tm->tm_hour, tm->tm_min, tm->tm_sec, millis); // Time
+    "%d-%.2d-%dT%.2d:%.2d:%.2d.%.3dZ", /* ISO-8601 complete format */
+    tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, /* Date */
+    tm->tm_hour, tm->tm_min, tm->tm_sec, millis); /* Time */
 }
 
 int
@@ -194,21 +194,23 @@ cee_timestamp_str(char *p_str, int len)
 ssize_t
 cee_str_bounds_check(const char *str, const size_t threshold_len)
 {
-  if (!str) return -1; // Missing string
+  size_t i;
+  if (!str) return -1; /* Missing string */
 
-  for (size_t i=0; i < threshold_len; ++i) {
-    if ('\0' == str[i]) return i; // bound check succeeded
+  for (i=0; i < threshold_len; ++i) {
+    if ('\0' == str[i]) return i; /* bound check succeeded */
   }
-  return 0; // bound check failed
+  return 0; /* bound check failed */
 }
 
 char* 
 cee_join_strings(char** strings, const size_t nmemb, const char delim[], const size_t wordlen, const size_t maxlen)
 {
+  size_t i;
   char *buf = malloc(maxlen);
   char *cur = buf, * const end = cur + maxlen;
 
-  for (size_t i=0; i < nmemb; ++i) {
+  for (i=0; i < nmemb; ++i) {
     VASSERT_S(cee_str_bounds_check(strings[i], wordlen) > 0, \
         "'%s' exceeds threshold of %zu characters", strings[i], wordlen);
     cur += snprintf(cur, end-cur, "%s%s", strings[i], delim);

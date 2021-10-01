@@ -32,4 +32,4 @@ void SHA1_Init(SHA1_CTX *context);
 void SHA1_Update(SHA1_CTX *context, const void *p, size_t len);
 
 void SHA1_Final(uint8_t digest[SHA1_DIGEST_SIZE], SHA1_CTX *context);
-#endif // SHA_H_
+#endif /* SHA_H_ */

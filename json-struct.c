@@ -9,7 +9,7 @@
 #include "json-actor.h"
 #include "cee-utils.h"
 
-// generated code dependencies
+/* generated code dependencies */
 static const char SPECS_DEPS_H[] =
   "#include <stdbool.h>\n"
   "#include <stdlib.h>\n"
@@ -124,7 +124,7 @@ load_converter(char *pos, size_t size, void *p)
 
 static char * converter_file = NULL;
 
-// @todo creating a callback for each converter to modify struct action would be much easier to maintain
+/* @todo creating a callback for each converter to modify struct action would be much easier to maintain */
 static void 
 init_converters(void) 
 {
@@ -163,7 +163,7 @@ init_converters(void)
   converters[2]->injector = "s";
   converters[2]->extractor_addrof = "&";
   converters[2]->injector_addrof = "";
-  converters[2]->converted_builtin_type = ""; // will fallback to str
+  converters[2]->converted_builtin_type = ""; /* will fallback to str */
   converters[2]->need_double_quotes = false;
   converters[2]->inject_is_user_def = false;
   converters[2]->extract_is_user_def = true;
@@ -188,7 +188,8 @@ load_converters(char *filename)
 static struct converter* 
 get_converter(char *name) 
 {
-  for (int i = 0; converters[i]; i++) {
+  int i;
+  for (i = 0; converters[i]; i++) {
     if (0 == strcmp(name, converters[i]->name)) {
       return converters[i];
     }
@@ -230,9 +231,10 @@ ns_to_symbol_name(char *name)
   char *buf;
   size_t len;
   FILE *fp = open_memstream(&buf, &len);
-  for (int s = 0; s < global_option.stack_top; s++) {
+  int s, i;
+  for (s = 0; s < global_option.stack_top; s++) {
     NTL_T(name_t) ns = global_option.namespace_stack[s];
-    for (int i = 0; ns[i]; i++)
+    for (i = 0; ns[i]; i++)
       fprintf(fp, "%s_", (char *)ns[i]);
   }
   fprintf(fp, "%s", name);
@@ -246,9 +248,10 @@ ns_to_item_name(char *name)
   char *buf;
   size_t len;
   FILE *fp = open_memstream(&buf, &len);
-  for (int s = 0; s < global_option.stack_top; s++) {
-    NTL_T(name_t) ns = global_option.namespace_stack[s];
-    for (int i = 0; ns[i]; i++)
+  int si, i;
+  for (si = 0; si < global_option.stack_top; si++) {
+    NTL_T(name_t) ns = global_option.namespace_stack[si];
+    for (i = 0; ns[i]; i++)
       fprintf(fp, "%s_", (char *)ns[i]);
   }
   fprintf(fp, "%s", name);
@@ -276,7 +279,7 @@ get_file_suffix(enum file_type t)
 }
 
 enum decor_tag {
-  DEC_NONE = 0, // this has to be zero as the absence means DEC_NONE
+  DEC_NONE = 0, /* this has to be zero as the absence means DEC_NONE */
   DEC_POINTER = 1,
   DEC_ARRAY = 2,
   DEC_NTL
@@ -305,12 +308,12 @@ struct type_value {
     double dval;
     char *sval;
   } _;
-  char *token; // will be used for conversion
+  char *token; /* will be used for conversion */
 };
 
 struct jc_type {
   char *base;
-  char *int_alias; // use for enum type names that are represented as int
+  char *int_alias; /* use for enum type names that are represented as int */
   struct decor decor;
   char *converter;
   bool nullable;
@@ -324,7 +327,7 @@ print_type(FILE *fp, struct jc_type *p) {
 
 
 enum loc {
-  LOC_IN_JSON = 0,  // this has to be zero as the absence means LOC_IN_JSON
+  LOC_IN_JSON = 0,  /* this has to be zero as the absence means LOC_IN_JSON */
   LOC_IN_QUERY,
   LOC_IN_BODY,
   LOC_IN_URL,
@@ -445,13 +448,14 @@ struct jc_definition {
   NTL_T(name_t) incl_headers;
   bool is_disabled;
   char *comment;
-  NTL_T(name_t) namespace; // ntl
-  NTL_T(struct jc_def) defs; //ntl
+  NTL_T(name_t) namespace; /* ntl */
+  NTL_T(struct jc_def) defs; /*ntl */
 };
 
 static int has_struct(NTL_T(struct jc_def) defs)
 {
-  for (int i = 0; defs[i]; i++)
+  int i;
+  for (i = 0; defs[i]; i++)
     if (defs[i]->is_struct)
       return 1;
   return 0;
@@ -459,7 +463,8 @@ static int has_struct(NTL_T(struct jc_def) defs)
 
 static int has_enum(NTL_T(struct jc_def) defs)
 {
-  for (int i = 0; defs[i]; i++)
+  int i;
+  for (i = 0; defs[i]; i++)
     if (!defs[i]->is_struct)
       return 1;
   return 0;
@@ -467,9 +472,11 @@ static int has_enum(NTL_T(struct jc_def) defs)
 
 static char* namespace_to_str(NTL_T(name_t) ns)
 {
+  int i;
   char *buf; size_t len;
   FILE * fp = open_memstream(&buf, &len);
-  for(int i = 0; ns && ns[i]; i++)
+
+  for(i = 0; ns && ns[i]; i++)
     fprintf(fp,"%s.", (char *)ns[i]);
   fclose(fp);
   return buf;
@@ -594,7 +601,7 @@ field_from_json(char *json, size_t size, void *x)
     {
       p->inject_condition.opcode = TYPE_NULL;
     }
-    else { // we will convert this to actual type later
+    else { /* we will convert this to actual type later */
       p->inject_condition.opcode = TYPE_RAW_JSON;
       asprintf(&p->inject_condition.token, 
           "%.*s", (int)t_inject_if_not.size, t_inject_if_not.start);
@@ -676,7 +683,8 @@ static size_t item_from_json(char *json, size_t size, void *x)
                           &p->comment,
                           defined, sizeof(defined));
 
-  for (int i = 0; i < 4; i++) {
+  int i;
+  for (i = 0; i < 4; i++) {
     if (defined[i] == &p->value)
       p->has_value = true;
   }
@@ -833,6 +841,7 @@ static void gen_enum_eval(FILE *fp, struct jc_enum *e)
 {
   char *t = ns_to_symbol_name(e->name);
   char *t_alias = NULL;
+  int i;
   
   if (e->typedef_name) 
     t_alias = ns_to_symbol_name(e->typedef_name);
@@ -842,7 +851,7 @@ static void gen_enum_eval(FILE *fp, struct jc_enum *e)
   else
     fprintf(fp, "enum %s %s_eval(char *s){\n", t, t);
 
-  for (int i = 0; e->items && e->items[i]; i++) {
+  for (i = 0; e->items && e->items[i]; i++) {
     struct jc_item *item = e->items[i];
     char *item_name = ns_to_item_name(item->name);
     if (item->todo)
@@ -859,6 +868,7 @@ static void gen_enum_print(FILE *fp, struct jc_enum *e)
 {
   char *t = ns_to_symbol_name(e->name);
   char *t_alias = NULL;
+  int i;
   
   if (e->typedef_name) 
     t_alias = ns_to_symbol_name(e->typedef_name);
@@ -869,7 +879,7 @@ static void gen_enum_print(FILE *fp, struct jc_enum *e)
     fprintf(fp, "char* %s_print(enum %s v){\n", t, t);
 
   fprintf(fp, "\n  switch (v) {\n");
-  for (int i = 0; e->items && e->items[i]; i++) {
+  for (i = 0; e->items && e->items[i]; i++) {
     struct jc_item *item = e->items[i];
     if (item->todo)
       fprintf(fp, "/* %s */\n", item->name);
@@ -1014,13 +1024,13 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
       f->inject_condition.opcode = TYPE_INT;
       f->inject_condition._.ival = (uint64_t)strtol(f->inject_condition.token,
                                                     &xend, 10);
-      // @todo check xend
+      /* @todo check xend */
     }
     if (f->type.default_value.opcode == TYPE_RAW_JSON) {
       f->type.default_value.opcode = TYPE_INT;
       f->type.default_value._.ival = (uint64_t)strtol(f->type.default_value.token,
                                                     &xend, 10);
-      // @todo check xend
+      /* @todo check xend */
     }
   }
   else if (strcmp(f->type.base, "s_as_u64") == 0) {
@@ -1031,13 +1041,13 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
       f->inject_condition.opcode = TYPE_INT;
       f->inject_condition._.ival = (uint64_t)strtoull(f->inject_condition.token,
                                                      &xend, 10);
-      // @todo check xend
+      /* @todo check xend */
     }
     if (f->type.default_value.opcode == TYPE_RAW_JSON) {
       f->type.default_value.opcode = TYPE_INT;
       f->type.default_value._.ival = (uint64_t)strtoull(f->type.default_value.token,
                                                      &xend, 10);
-      // @todo check xend
+      /* @todo check xend */
     }
   }
   else if (strcmp(f->type.base, "s_as_hex_uint") == 0) {
@@ -1051,13 +1061,13 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
       f->inject_condition.opcode = TYPE_INT;
       f->inject_condition._.ival = (uint64_t)strtoll(f->inject_condition.token,
                                                      &xend, 10);
-      // @todo check xend
+      /* @todo check xend */
     }
     if (f->type.default_value.opcode == TYPE_RAW_JSON) {
       f->type.default_value.opcode = TYPE_INT;
       f->type.default_value._.ival = (uint64_t)strtoll(f->type.default_value.token,
                                                      &xend, 10);
-      // @todo check xend
+      /* @todo check xend */
     }
   }
   else if (strcmp(f->type.base, "int64_t") == 0) {
@@ -1100,12 +1110,12 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
     if (f->inject_condition.opcode == TYPE_RAW_JSON) {
       f->inject_condition.opcode = TYPE_DOUBLE;
       f->inject_condition._.dval = strtod(f->inject_condition.token, &xend);
-      // @todo check xend
+      /* @todo check xend */
     }
     if (f->type.default_value.opcode == TYPE_RAW_JSON) {
       f->type.default_value.opcode = TYPE_DOUBLE;
       f->type.default_value._.dval = strtod(f->type.default_value.token, &xend);
-      // @todo check xend
+      /* @todo check xend */
     }
   }
   else if (strcmp(f->type.base, "char") == 0
@@ -1139,7 +1149,7 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
           f->inject_condition.opcode = TYPE_INT;
           f->inject_condition._.ival = \
             (uint64_t)strtoll(f->inject_condition.token, &xend, 10);
-          // @todo check xend
+          /* @todo check xend */
         }
         else {
           f->inject_condition.opcode = TYPE_STR;
@@ -1150,7 +1160,7 @@ static int to_builtin_action(struct jc_field *f, struct action *act)
           f->type.default_value.opcode = TYPE_INT;
           f->type.default_value._.ival = \
             (uint64_t)strtoll(f->type.default_value.token, &xend, 10);
-          // @todo check xend
+          /* @todo check xend */
         }
         else {
           f->type.default_value.opcode = TYPE_STR;
@@ -1302,7 +1312,7 @@ static void emit_field_init(void *cxt, FILE *fp, struct jc_field *f)
   case TYPE_RAW_JSON:
       ERR("(Internal Error) Type is TYPE_RAW_JSON, but should have been converted to a primitive");
       break;
-  case TYPE_UNDEFINED: // do nothing
+  case TYPE_UNDEFINED: /* do nothing */
   case TYPE_EMPTY_STR:
   default:
       break;
@@ -1327,10 +1337,10 @@ static void emit_field_init(void *cxt, FILE *fp, struct jc_field *f)
 static void gen_init (FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
-
+  int i;
   fprintf(fp, "void %s_init(struct %s *p) {\n", t, t);
   fprintf(fp, "  memset(p, 0, sizeof(struct %s));\n", t);
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     emit_field_spec(NULL, fp, s->fields[i]);
     emit_field_init(NULL, fp, s->fields[i]);
     fprintf(fp, "\n");
@@ -1341,7 +1351,8 @@ static void gen_init (FILE *fp, struct jc_struct *s)
 
 static bool is_disabled_method(struct jc_def *d, char *name)
 {
-  for (int i = 0; d->disable_methods && d->disable_methods[i]; i++)
+  int i;
+  for (i = 0; d->disable_methods && d->disable_methods[i]; i++)
     if (strcmp(name, (char *)d->disable_methods[i]) == 0)
       return true;
   return false;
@@ -1421,8 +1432,9 @@ static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
 static void gen_cleanup(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
+  int i;
   fprintf(fp, "void %s_cleanup(struct %s *d) {\n", t, t);
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     emit_field_spec(NULL, fp, s->fields[i]);
     emit_field_cleanup(NULL, fp, s->fields[i]);
   }
@@ -1479,7 +1491,7 @@ static void emit_json_extractor_arg(void *cxt, FILE *fp, struct jc_field *f)
 static void gen_from_json(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
-
+  int i;
   if (is_disabled_method((struct jc_def*)s, "from_json")) {
     fprintf(fp, "\n/* This method is disabled at %s:%d:%d */\n",
             spec_name,
@@ -1499,7 +1511,7 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
   fprintf(fp, "  %s_init(p);\n", t);
   fprintf(fp, "  r=json_extract(json, len, \n");
 
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     if (s->fields[i]->loc != LOC_IN_JSON)
       continue;
     emit_field_spec(NULL, fp, s->fields[i]);
@@ -1510,7 +1522,7 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
   fprintf(fp, "                \"@record_defined\"\n");
   fprintf(fp, "                \"@record_null\",\n");
 
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     if (s->fields[i]->loc != LOC_IN_JSON)
       continue;
     emit_field_spec(NULL, fp, s->fields[i]);
@@ -1590,12 +1602,12 @@ static void emit_inject_setting(void *cxt, FILE *fp, struct jc_field *f)
 static void gen_use_default_inject_settings(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
-
+  int i;
   fprintf(fp, "static void %s_use_default_inject_settings(struct %s *p)\n",
           t, t);
   fprintf(fp, "{\n");
   fprintf(fp, "  p->__M.enable_arg_switches = true;\n");
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     emit_field_spec(NULL, fp, s->fields[i]);
     emit_inject_setting(&i, fp, s->fields[i]);
     fprintf(fp, "\n");
@@ -1635,7 +1647,7 @@ static void emit_json_injector_arg(void * cxt, FILE *fp, struct jc_field *f)
 static void gen_to_json(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
-
+  int i;
   if (is_disabled_method((struct jc_def*)s, "to_json")) {
     fprintf(fp, "\n/* This method is disabled at %s:%d:%d */\n",
             spec_name,
@@ -1651,7 +1663,7 @@ static void gen_to_json(FILE *fp, struct jc_struct *s)
   fprintf(fp, "  %s_use_default_inject_settings(p);\n", t);
   fprintf(fp, "  r=json_inject(json, len, \n");
 
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     if (s->fields[i]->loc != LOC_IN_JSON)
       continue;
     emit_field_spec(NULL, fp, s->fields[i]);
@@ -1660,7 +1672,7 @@ static void gen_to_json(FILE *fp, struct jc_struct *s)
 
   fprintf(fp, "                \"@arg_switches:b\",\n");
 
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     if (s->fields[i]->loc != LOC_IN_JSON)
       continue;
     emit_field_spec(NULL, fp, s->fields[i]);
@@ -1679,9 +1691,9 @@ static void gen_to_query(FILE *fp, struct jc_struct *s)
   return;
 
   char *t = ns_to_symbol_name(s->name);
-
+  int i;
   bool has_query = false;
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     struct jc_field *f = s->fields[i];
     if (f->loc != LOC_IN_QUERY)
       continue;
@@ -1702,7 +1714,7 @@ static void gen_to_query(FILE *fp, struct jc_struct *s)
   fprintf(fp, "  r = query_inject(json, len, \n");
 
   
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     struct jc_field *f = s->fields[i];
     if (f->loc != LOC_IN_QUERY)
       continue;
@@ -1714,7 +1726,7 @@ static void gen_to_query(FILE *fp, struct jc_struct *s)
   }
   fprintf(fp, "                \"@arg_switches:b\",\n");
 
-  for (int i = 0; s->fields && s->fields[i]; i++) {
+  for (i = 0; s->fields && s->fields[i]; i++) {
     struct jc_field *f = s->fields[i];
     if (f->loc != LOC_IN_QUERY)
       continue;
@@ -1765,10 +1777,10 @@ static void gen_struct(FILE *fp, struct jc_struct *s)
        " *     * :code:`void %s_to_json(char *wbuf, size_t len, struct %s *)`\n"
        " *     * :code:`void %s_list_to_json(char *wbuf, size_t len, struct %s **)`\n"
        " * @endverbatim\n",
-       t, t,        // Initializer
-       t, t, t, t,  // Cleanup
-       t, t, t, t,  // JSON Decoder
-       t, t, t, t); // JSON Encoder
+       t, t,        /* Initializer */
+       t, t, t, t,  /* Cleanup */
+       t, t, t, t,  /* JSON Decoder */
+       t, t, t, t); /* JSON Encoder */
   }
   fputs(" */\n", fp);
 
@@ -1978,7 +1990,7 @@ static void gen_struct_all(FILE *fp, struct jc_def *d, name_t **ns)
       gen_to_query(fp, s);
       fprintf(fp, "\n");
 
-      // boilerplate
+      /* boilerplate */
       gen_typedef(fp);
       gen_wrapper(fp, d);
       gen_cleanup(fp, s);
@@ -1999,7 +2011,7 @@ static void gen_struct_all(FILE *fp, struct jc_def *d, name_t **ns)
       gen_to_query(fp, s);
       fprintf(fp, "\n");
 
-      // boilerplate
+      /* boilerplate */
       gen_typedef(fp);
       gen_wrapper(fp, d);
       fprintf(fp, "\n");
@@ -2018,9 +2030,10 @@ gen_all_ns(
   struct jc_def *def,
   void (g)(FILE *, struct jc_def *, name_t **))
 {
+  int i;
   g(fp, def, def->namespace);
   if (def->namespaces) {
-    for (int i = 0; def->namespaces[i]; i++)
+    for (i = 0; def->namespaces[i]; i++)
       g(fp, def, *(def->namespaces[i]));
   }
 }
@@ -2045,7 +2058,7 @@ static void
 gen_definition(char *fname, char *openmode, struct emit_option * option, struct jc_definition *d)
 {
   if (strchr(openmode, 'a') && access(fname, F_OK) != 0)
-    openmode = "w"; // first time creating this file
+    openmode = "w"; /* first time creating this file */
 
   FILE *fp = fname ? fopen(fname, openmode) : stderr;
   VASSERT_S(fp != NULL, "Expected file '%s', but it doesn't exist", fname);
@@ -2053,7 +2066,7 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
   init_emit_option(option);
   if (d->is_disabled) return;
 
-  init_converters(); // @todo move it out of this function.
+  init_converters(); /* @todo move it out of this function. */
 
   if (d->spec_name) {
     fprintf(fp, 
@@ -2073,9 +2086,11 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
   if (FILE_SINGLE_FILE == global_option.type
       || FILE_CODE == global_option.type)
   {
+    int i;
+
     fputs(SPECS_DEPS_H, fp);
     if (d->incl_headers)
-      for (int i=0; d->incl_headers[i]; ++i)
+      for (i=0; d->incl_headers[i]; ++i)
         fprintf(fp, "#include \"%s\"\n", (char*)d->incl_headers[i]);
   }
 
@@ -2094,7 +2109,8 @@ gen_definition_list(
   NTL_T(struct jc_definition) ntl)
 {
   char *fname=NULL;
-  for (int i = 0; ntl && ntl[i]; i++) {
+  int i;
+  for (i = 0; ntl && ntl[i]; i++) {
     struct jc_definition *d = ntl[i];
     char *f = namespace_to_str(d->namespace);
     asprintf(&fname, "%s/%s%s", folder, f, get_file_suffix(global_option.type));

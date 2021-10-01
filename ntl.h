@@ -1,10 +1,10 @@
 #ifndef NTL_H
 #define NTL_H
-#include <stddef.h> // for size_t
+#include <stddef.h> /* for size_t */
 
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
+#endif /* __cplusplus */
 
 /*
  * this is a very important data structure that is used
@@ -201,6 +201,6 @@ int ntl_is_a_member(ntl_t p , void *addr);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif /* __cplusplus */
 
-#endif //NTL_H
+#endif /*NTL_H */

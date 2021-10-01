@@ -5,6 +5,7 @@ static struct stack stack = { .array = {0}, .top = 0, .actor = INJECTOR };
 
 int main ()
 {
+  size_t i;
   struct value value;
   char * next_pos;
   parse_value(&stack, "d", strlen("d"), &value, &next_pos);
@@ -94,7 +95,7 @@ int main ()
   fprintf (stderr, "\n");
   print_composite_value(stderr, &cv);
   get_composite_value_operand_addrs(&cv, &rec);
-  for (size_t i = 0; i < rec.pos; i++)
+  for (i = 0; i < rec.pos; i++)
     fprintf (stderr, "%p ", rec.addrs[i]);
 
   memset(&cv, 0, sizeof(struct composite_value));

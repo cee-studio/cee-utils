@@ -19,22 +19,22 @@ int hmac_sha1(uint8_t* digest, uint8_t* key, uint8_t* message, size_t keylen, si
     uint8_t tmpdigeset[DIGESTSIZE]; 
     uint8_t* tmp;
 
-    // If key is longer than blocksize (64), hash the key and make that the new key
+    /* If key is longer than blocksize (64), hash the key and make that the new key */
     if (keylen > BLOCKSIZE) {
         sha1digest(newkey, NULL, key, keylen);
     }
     else {
-        // Transfer to newkey array since that has 0s as padding already
+        /* Transfer to newkey array since that has 0s as padding already */
         memcpy(newkey, key, keylen);
     }
 
-    // Create o key pad 
+    /* Create o key pad  */
     for (i = 0; i < BLOCKSIZE; i++)
     {
         o_key_pad[i] = 0x5c ^ newkey[i];
     }
 
-    // Create i key pad 
+    /* Create i key pad  */
     for (i = 0; i < BLOCKSIZE; i++)
     {
         i_key_pad[i] = 0x36 ^ newkey[i];

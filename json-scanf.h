@@ -1,13 +1,13 @@
 #ifndef JSON_SCANF_H
 #define JSON_SCANF_H
 
-#include <stddef.h> // for size_t
+#include <stddef.h> /* for size_t */
 #include "ntl.h"
 
 
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
+#endif /*_cplusplus */
 
 typedef int (extractor)(char *, size_t, void *p);
 
@@ -20,6 +20,6 @@ extern int json_snprintf(char *str, size_t size, char *format, ...);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif /* __cplusplus */
 
-#endif // JSON_SCANF_H
+#endif /* JSON_SCANF_H */

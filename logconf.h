@@ -3,7 +3,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
+#endif /* __cplusplus */
 
 #include <stdint.h> /* uint64_t */
 #include "ntl.h"    /* struct sized_buffer */
@@ -23,17 +23,17 @@ extern "C" {
 #define LOGCONF_PATH_MAX 4096
 
 struct logconf {
-  char id[LOGCONF_ID_LEN]; ///< the logging module identifier
-  log_Logger L;            ///< log.c main structure
-  unsigned pid;            ///< the id of the process where this module was created
+  char id[LOGCONF_ID_LEN]; /*< the logging module identifier*/
+  log_Logger L;            /*< log.c main structure*/
+  unsigned pid;            /*< the id of the process where this module was created */
 
 /* SHARED RESOURCES BELOW */
-  _Bool is_branch;          ///< if true then logconf_cleanup() won't cleanup shared resources
-  struct sized_buffer file; ///< config file contents
+  _Bool is_branch;          /*< if true then logconf_cleanup() won't cleanup shared resources */
+			      struct sized_buffer file; /*< config file contents*/
   struct {
     char fname[LOGCONF_PATH_MAX];
     FILE *f;
-  } *logger, *http; // 'log_xxx()' and 'log_http()' outputs
+  } *logger, *http; /* 'log_xxx()' and 'log_http()' outputs */
   NTL_T(struct ja_str) disable_modules;
 };
 
@@ -51,6 +51,6 @@ void logconf_http(struct logconf*, struct loginfo*, char url[], struct sized_buf
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif /* __cplusplus */
 
-#endif // LOGCONF_H
+#endif /* LOGCONF_H */

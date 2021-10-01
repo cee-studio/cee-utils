@@ -23,4 +23,6 @@ int main ()
   extract_ntl_from_json(ns, strlen(ns), &d0_alias);
   fprintf(stderr, "%zu\n", ntl_length((ntl_t)namespaces));
   fprintf(stderr, "%zu\n", ntl_length((ntl_t)*(namespaces[0])));
+
+  return 0;
 }

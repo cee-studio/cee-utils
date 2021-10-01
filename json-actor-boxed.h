@@ -6,17 +6,17 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
+#endif /* __cplusplus */
 
 typedef struct ja_str
 {
   char * value;
-} ja_str; // json-actor's boxed  built-in type
+} ja_str; /* json-actor's boxed  built-in type */
 
 typedef struct ja_u64
 {
   uint64_t value;
-} ja_u64; // json-actor's boxed built-in type
+} ja_u64; /* json-actor's boxed built-in type */
 
 
 void ja_str_cleanup_v(void *p);
@@ -59,6 +59,6 @@ void ja_u64_use_default_inject_settings(struct ja_u64 *p);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif /* __cplusplus */
 
-#endif //JSON_ACTOR_BOXED_H
+#endif /*JSON_ACTOR_BOXED_H */
