@@ -1544,6 +1544,7 @@ static void gen_from_json(FILE *fp, struct jc_struct *s)
     emit_field_spec(NULL, fp, s->fields[i]);
     emit_json_extractor(NULL, fp, s->fields[i], false);
   }
+  emit_field_spec(NULL, fp, s->fields[i]);
   emit_json_extractor(NULL, fp, s->fields[i], true);
 
   for (i = 0; i < fields_amt-1; i++) {
