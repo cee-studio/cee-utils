@@ -12,8 +12,6 @@ list="README.md
 debug.h
 cee-sqlite3.h
 cee-sqlite3.c
-cee-sqlite3-2.h
-cee-sqlite3-2.c
 jsmn.h
 json-actor-boxed.c
 json-actor-boxed.h
