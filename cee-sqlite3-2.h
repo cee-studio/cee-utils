@@ -39,6 +39,7 @@ struct cee_sqlite3_bind_data {
   int64_t i64;
   char *value;
   size_t size;
+  int has_value;
 };
 
 struct cee_sqlite3_stmts {

@@ -65,6 +65,7 @@ int cee_sqlite3_bind_run_sql(struct cee_state *state,
       for(int i = 0; info[i].var_name; i++) {
         idx = sqlite3_bind_parameter_index(sql_stmt, info[i].var_name);
         if (idx <= 0) continue;
+	if (!data[i].has_value) continue;
         switch(info[i].type) 
         {
           case CEE_SQLITE3_INT:
