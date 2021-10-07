@@ -826,7 +826,7 @@ static void gen_enum(FILE *fp, struct jc_enum *e)
       }
 
       if (item->comment)
-        fprintf(fp, ", /** %s */\n", item->comment);
+        fprintf(fp, ", /**< %s */\n", item->comment);
       else
         fprintf(fp, ",\n");
     }
@@ -1450,7 +1450,7 @@ static void emit_field(void *cxt, FILE *fp, struct jc_field *f)
     fprintf(fp, "  /* @todo %s %s; */\n", f->name, f->comment);
   }
   else if (f->comment)
-    fprintf(fp, "  %s %s%s%s; /** %s */\n",
+    fprintf(fp, "  %s %s%s%s; /**< %s */\n",
             act.c_type, act.pre_dec, act.c_name, act.post_dec, f->comment);
   else
     fprintf(fp, "  %s %s%s%s;\n",
