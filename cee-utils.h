@@ -36,7 +36,7 @@ int cee_strtoull(char *str, size_t len, uint64_t *p_value);
 int cee_ulltostr(char *str, size_t len, uint64_t *p_value);
 int cee_strndup(char *src, size_t len, char **p_dest);
 
-void cee_sleep_ms(const int64_t delay_ms);
+int cee_sleep_ms(const long tms);
 uint64_t cee_timestamp_ms(void);
 char* cee_timestamp_str(char *p_str, int len);
 

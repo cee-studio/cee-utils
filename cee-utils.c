@@ -155,16 +155,22 @@ cee_strndup(char *src, size_t len, char **p_dest)
   return 1;
 }
 
-void
-cee_sleep_ms(const int64_t delay_ms)
+int
+cee_sleep_ms(const long tms)
 {
-  if (delay_ms < 0) return; /* EARLY RETURN */
+  struct timespec ts;
+  int ret;
 
-  const struct timespec t = {
-    .tv_sec = delay_ms / 1000,
-    .tv_nsec = (delay_ms % 1000) * 1000000
-  };
-  nanosleep(&t, NULL);
+  if (tms < 0) {
+    errno = EINVAL;
+    return -1;
+  }
+  ts.tv_sec = tms / 1000;
+  ts.tv_nsec = (tms % 1000) * 1000000;
+  do {
+    ret = nanosleep(&ts, &ts);
+  } while (ret && errno == EINTR);
+  return ret;
 }
 
 /* returns current timestamp in milliseconds */
