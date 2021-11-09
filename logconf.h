@@ -98,7 +98,6 @@ struct logconf {
   _Bool is_branch;
   /** config file conents */
   struct sized_buffer file;
-  /** logging output */
   struct {
     /** name of logging output file */
     char fname[LOGCONF_PATH_MAX];
@@ -131,7 +130,7 @@ void logconf_setup(struct logconf *conf, const char id[], FILE *fp);
  * @brief Branch and link a `struct logconf` module to a existing one
  *
  * Initialize a `branch` logging module thats expected to share common
- * resources with its parent parent module `orig`. The common resources
+ * resources with its parent module `orig`. The common resources
  * include: config file directives, logging output and disabled modules list.
  * @param branch pointer to the `struct logconf` structure to be initialized as
  * `orig` branch
