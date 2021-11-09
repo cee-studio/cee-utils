@@ -35,5 +35,7 @@ int main ()
   for(i = 0; p[i]; i++)
     print_abc(p[i], i);
 
+  ntl_free(p, NULL);
+
   return 0;
 }
