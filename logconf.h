@@ -9,22 +9,52 @@ extern "C" {
 #include "ntl.h" /* struct sized_buffer */
 #include "debug.h"
 
-/** @brief Log level trace */
+/**
+ * @brief Log level trace
+ *
+ * @param conf the `struct logconf` module
+ * @param ... the printf-like format string and successive arguments
+ */
 #define logconf_trace(conf, ...)                                              \
   logconf_log(conf, LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
-/** @brief Log level debug */
+/**
+ * @brief Log level debug
+ *
+ * @param conf the `struct logconf` module
+ * @param ... the printf-like format string and successive arguments
+ */
 #define logconf_debug(conf, ...)                                              \
   logconf_log(conf, LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-/** @brief Log level info */
+/**
+ * @brief Log level info
+ *
+ * @param conf the `struct logconf` module
+ * @param ... the printf-like format string and successive arguments
+ */
 #define logconf_info(conf, ...)                                               \
   logconf_log(conf, LOG_INFO, __FILE__, __LINE__, __VA_ARGS__)
-/** @brief Log level warn */
+/**
+ * @brief Log level warn
+ *
+ * @param conf the `struct logconf` module
+ * @param ... the printf-like format string and successive arguments
+ */
 #define logconf_warn(conf, ...)                                               \
   logconf_log(conf, LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
-/** @brief Log level error */
+/**
+ * @brief Log level error
+ *
+ * @param conf the `struct logconf` module
+ * @param ... the printf-like format string and successive arguments
+ */
 #define logconf_error(conf, ...)                                              \
   logconf_log(conf, LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__)
-/** @brief Log level fatal */
+/**
+ * @brief Log level fatal
+ *
+ * @param conf the `struct logconf` module
+ * @param ... the printf-like format string and successive arguments
+ */
 #define logconf_fatal(conf, ...)                                              \
   logconf_log(conf, LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__)
 
@@ -32,7 +62,15 @@ extern "C" {
 #define __logconf_log(conf, level, file, line, fmt, ...)                      \
   _log_log(&(conf)->L, level, file, line, "[%s] " fmt "%s", (conf)->id,       \
            __VA_ARGS__)
-/** @brief Run-time configurable log level */
+/**
+ * @brief Run-time configurable log level
+ *
+ * @param conf the `struct logconf` module
+ * @param level the log level enumerator from `log.c`
+ * @param file the origin file name
+ * @param line the origin file line
+ * @param ... the printf-like format string and successive arguments
+ */
 #define logconf_log(conf, level, file, line, ...)                             \
   __logconf_log(conf, level, file, line, __VA_ARGS__, "")
 
