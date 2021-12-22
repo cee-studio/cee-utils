@@ -19,7 +19,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -29,9 +28,10 @@
 
 #include "json-scanf.h"
 #include "json-actor.h"
-#include "debug.h"
 
 #include "ntl.h"
+#include "debug.h"
+#include "cee-utils.h"
 
 #define JSMN_STATIC  /* dont expose jsmn symbols */
 #define JSMN_PARENT_LINKS /* add parent links to jsmn_tok, which are needed */
@@ -99,9 +99,14 @@ static char * copy_over_string (size_t * new_size, char * str, size_t len)
   }
   else {
     /* ill formed string */
-    char * p = NULL;
-    asprintf(&p, "cannot unescape an ill-formed-string %.*s", (int)len, str);
-    *new_size = strlen(p) + 1;
+    char *p = NULL;
+    char buf[512];
+    size_t ret;
+
+    ret = snprintf(buf, sizeof(buf),
+                   "cannot unescape an ill-formed string %.*s", (int)len, str);
+
+    *new_size = cee_strndup(buf, ret, &p) + 1;
     return p;
   }
 }
