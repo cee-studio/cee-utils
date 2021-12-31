@@ -1,21 +1,23 @@
-CC     ?= gcc
-OBJDIR := obj
+CC ?= gcc
+
+OBJDIR   := obj
+TEST_DIR := test
 
 SRC := $(wildcard *.c)
 OBJS := $(SRC:%.c=$(OBJDIR)/%.o)
 
-TEST_SRC  := $(wildcard test/test-*.c)
-TEST_EXES := $(TEST_SRC:%.c=%.exe)
+CFLAGS += -std=c89 -O0 -g            \
+          -Wall -Wno-unused-function \
+          -I. -DLOG_USE_COLOR
 
-CFLAGS += -Wall -std=c89 -O0 -g \
-	-Wno-unused-function \
-	-I./ -DLOG_USE_COLOR
 ifneq ($(release),1)
 	CFLAGS += -D_STATIC_DEBUG
 endif
+
 ifeq ($(DEBUG_JSON),1)
 	CFLAGS += -D_STRICT_STATIC_DEBUG
 endif
+
 ifeq ($(CC),stensal-c)
 	CFLAGS += -D_DEFAULT_SOURCE
 else
@@ -24,32 +26,25 @@ endif
 
 LDFLAGS += -lm
 
-.PHONY : all test clean
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
-all : test
-test : $(OBJS) $(TEST_EXES)
+all: $(OBJS)
 
-$(TEST_EXES): $(OBJS) | $(OBJDIR)
+test: all
+	$(MAKE) -C $(TEST_DIR)
+
 $(OBJS): | $(OBJDIR)
 
-# generic compilation
-$(OBJDIR)/%.o : %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-test/test-json-actor.exe : test/test-json-actor.c
-	$(CC) $< $(filter-out $(OBJDIR)/json-actor.o, $(OBJS)) \
-		$(CFLAGS) -o $@ $(LDFLAGS)
-# generic compilation
-test/test-%.exe : test/test-%.c
-	$(CC) $< $(OBJS) $(CFLAGS) -o $@ $(LDFLAGS)
-
-echo :
-	@echo SRC $(SRC)
-	@echo OBJS $(OBJS)
-	@echo TEST_SRC $(TEST_SRC)
-	@echo TEST_EXES $(TEST_EXES)
-
 $(OBJDIR) :
-	mkdir -p $(OBJDIR)/test
+	mkdir -p $(OBJDIR)
 
-clean : 
-	rm -rf $(OBJDIR) test/*.exe
+echo:
+	@ echo -e 'SRC: $(SRC)'
+	@ echo -e 'OBJS: $(OBJS)'
+
+clean: 
+	rm -rf $(OBJDIR)
+	$(MAKE) -C $(TEST_DIR) clean
+
+.PHONY : all test echo clean
