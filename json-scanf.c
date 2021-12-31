@@ -38,10 +38,6 @@
 #define JSMN_STRICT  /* parse json in strict mode */
 #include "jsmn.h"
 
-
-#define STREQ(s,t)    (0 == strcmp(s,t))
-#define STRNEQ(s,t,n) (0 == strncmp(s,t,n))
-
 #define N_PATH_MAX 8
 #define KEY_MAX 128
 
