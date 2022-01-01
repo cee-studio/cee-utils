@@ -1,4 +1,5 @@
 #if defined(CEE_USE_SQLITE3)
+
 #include "cee-sqlite3.h"
 
 sqlite3* cee_sqlite3_init_db(char *dbname, char *sqlstmts)

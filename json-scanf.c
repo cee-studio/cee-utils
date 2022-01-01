@@ -688,6 +688,7 @@ json_scanf(char *buffer, size_t buf_size, char *format, ...)
   va_list ap;
   va_start(ap, format);
   size_t i;
+
   for (i = 0; i < num_keys ; ++i) {
     if (es[i].has_dynamic_size)  {
       es[i].size = va_arg(ap, int); /* use this as a size */
@@ -727,7 +728,7 @@ json_scanf(char *buffer, size_t buf_size, char *format, ...)
     ERR("Object or array expected");
   }
 
-  for (i = 0; i < num_tok; i++) {
+  for (i = 0; i < (size_t)num_tok; i++) {
     DS_PRINT("[%d][p:%d][size:%d]%s (%.*s)\n", i, tok[i].parent,
              tok[i].size, print_token(tok[i].type),
              (int)(tok[i].end - tok[i].start), buffer + tok[i].start);
@@ -759,8 +760,7 @@ json_scanf(char *buffer, size_t buf_size, char *format, ...)
     else
       has_values = (void **) capture_existance->recipient;
 
-    size_t i;
-    size_t j;
+    int j;
     for (i = 0, j = 0; i < num_keys; i++) {
       if (es+i == capture_existance) continue;
 

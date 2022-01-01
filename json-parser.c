@@ -624,7 +624,7 @@ json_parse(char *buffer, size_t len)
     /* build while item and buffer aren't nulled */
     json_item_t *item = root;
     while ((NULL != item) 
-        && ((cxt.buffer - buffer) < len)
+        && ((size_t)(cxt.buffer - buffer) < len)
         && ('\0' != *cxt.buffer))
     {
         switch(item->type){
