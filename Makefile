@@ -24,7 +24,7 @@ else
 	CFLAGS += -fPIC -D_XOPEN_SOURCE=700
 endif
 
-LDFLAGS += -lm
+LDFLAGS +=
 
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
