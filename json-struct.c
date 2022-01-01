@@ -102,27 +102,6 @@ struct converter {
 
 static NTL_T(struct converter) converters = NULL;
 
-static void 
-load_converter(char *pos, size_t size, void *p)
-{
-  struct converter *c = (struct converter *)p;
-  json_extract(pos, size,
-               "(name):?s,"
-               "(input_type):?s,"
-               "(output_type):?s,"
-               "(extractor):?s,"
-               "(injector):?s,"
-               "(free):?s",
-               &c->name,
-               &c->input_type,
-               &c->output_type,
-               &c->extractor,
-               &c->injector,
-               &c->free);
-}
-
-static char * converter_file = NULL;
-
 /* @todo creating a callback for each converter to modify struct action would be much easier to maintain */
 static void 
 init_converters(void) 
@@ -168,22 +147,6 @@ init_converters(void)
   converters[2]->extract_is_user_def = true;
 }
 
-static void 
-load_converters(char *filename)
-{
-  size_t len = 0;
-  char *data = cee_load_whole_file(filename, &len);
-  converter_file = strdup(filename);
-
-  struct ntl_deserializer d = {
-    .ntl_recipient_p = (ntl_t *)&converters,
-    .init_elem = NULL,
-    .elem_size = sizeof(struct converter),
-    .elem_from_buf = (vcpsvp)load_converter
-  };
-  extract_ntl_from_json(data, len, &d);
-}
-
 static struct converter* 
 get_converter(char *name) 
 {
@@ -193,7 +156,7 @@ get_converter(char *name)
       return converters[i];
     }
   }
-  ERR("converter '%s' is not defined in '%s'\n", name, converter_file);
+  ERR("converter '%s' is not defined\n", name);
   return NULL;
 }
 
@@ -451,24 +414,6 @@ struct jc_definition {
   NTL_T(struct jc_def) defs; /*ntl */
 };
 
-static int has_struct(NTL_T(struct jc_def) defs)
-{
-  int i;
-  for (i = 0; defs[i]; i++)
-    if (defs[i]->is_struct)
-      return 1;
-  return 0;
-}
-
-static int has_enum(NTL_T(struct jc_def) defs)
-{
-  int i;
-  for (i = 0; defs[i]; i++)
-    if (!defs[i]->is_struct)
-      return 1;
-  return 0;
-}
-
 static char* namespace_to_str(NTL_T(name_t) ns)
 {
   int i;
@@ -481,7 +426,7 @@ static char* namespace_to_str(NTL_T(name_t) ns)
   return buf;
 }
 
-static void
+void
 print_definition(FILE *fp, struct jc_definition *p)
 {
   fprintf(fp, "/*\n %s  */\n", p->comment);
@@ -970,8 +915,8 @@ definition_list_from_json(char *json, size_t size,
   return extract_ntl_from_json(json, size, &d);
 }
 
-static size_t spec_from_json(char *json, size_t size,
-                             NTL_T(struct jc_definition) *s)
+size_t spec_from_json(char *json, size_t size,
+                      NTL_T(struct jc_definition) *s)
 {
   char *const xend_pos = json + size;
 
@@ -1302,6 +1247,7 @@ static void emit_field_init(void *cxt, FILE *fp, struct jc_field *f)
 {
   struct action act = { 0 };
   to_action(f, &act);
+  (void)cxt;
 
   if (act.todo) return;
 
@@ -1406,10 +1352,12 @@ static void gen_default(FILE *fp, struct jc_def *d)
 static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
 {
   struct action act = {0};
+  (void)cxt;
+
   to_action(f, &act);
 
   if (act.todo)
-    fprintf(fp, "  /* @todo p->%s */\n", act.c_name);
+    fprintf(fp, "  /* @todo d->%s */\n", act.c_name);
   else if (act.free) {
     if (strstr(act.free, "_cleanup"))
       fprintf(fp, "  if (d->%s) {\n"
@@ -1423,26 +1371,31 @@ static void emit_field_cleanup(void *cxt, FILE *fp, struct jc_field *f)
                   act.c_name, act.free, act.c_name);
   } 
   else
-    fprintf(fp, "  /* p->%s is a scalar */\n", act.c_name);
+    fprintf(fp, "  (void)d->%s;\n", act.c_name);
 }
 
 static void gen_cleanup(FILE *fp, struct jc_struct *s)
 {
   char *t = ns_to_symbol_name(s->name);
   int i;
-  fprintf(fp, "void %s_cleanup(struct %s *d) {\n", t, t);
-  for (i = 0; s->fields && s->fields[i]; i++) {
-    emit_field_spec(NULL, fp, s->fields[i]);
-    emit_field_cleanup(NULL, fp, s->fields[i]);
-  }
 
+  fprintf(fp, "void %s_cleanup(struct %s *d) {\n", t, t);
+
+  if (s->fields)
+    for (i = 0; s->fields[i]; i++) {
+      emit_field_spec(NULL, fp, s->fields[i]);
+      emit_field_cleanup(NULL, fp, s->fields[i]);
+    }
   fprintf(fp, "}\n");
 }
 
 static void emit_field(void *cxt, FILE *fp, struct jc_field *f)
 {
   struct action act = {0};
+  (void)cxt;
+
   to_action(f, &act);
+
   if (act.todo) {
     fprintf(fp, "  /* @todo %s %s; */\n", f->name, f->comment);
   }
@@ -1457,9 +1410,11 @@ static void emit_field(void *cxt, FILE *fp, struct jc_field *f)
 static void emit_json_extractor(void *cxt, FILE *fp, struct jc_field *f, bool last_arg)
 {
   char *strend = !last_arg ? "\n" : ",\n";
-
   struct action act = {0};
+  (void)cxt;
+
   to_action(f, &act);
+
   if (act.todo) return;
 
   if (act.extract_is_user_def)
@@ -1471,9 +1426,11 @@ static void emit_json_extractor(void *cxt, FILE *fp, struct jc_field *f, bool la
 static void emit_json_extractor_arg(void *cxt, FILE *fp, struct jc_field *f, bool last_arg)
 {
   char *strend = !last_arg ? ",\n" : ");\n";
-
   struct action act = {0};
+  (void)cxt;
+
   to_action(f, &act);
+
   if (act.todo) return;
 
   if (act.extract_is_user_def) {
@@ -1622,7 +1579,10 @@ static void emit_inject_setting(void *cxt, FILE *fp, struct jc_field *f)
 static void emit_json_injector(void *cxt, FILE *fp, struct jc_field *f)
 {
   struct action act = {0};
+  (void)cxt;
+
   to_action(f, &act);
+
   if (act.todo) return;
 
   if (act.inject_is_user_def)
@@ -1637,7 +1597,10 @@ static void emit_json_injector(void *cxt, FILE *fp, struct jc_field *f)
 static void emit_json_injector_arg(void * cxt, FILE *fp, struct jc_field *f)
 {
   struct action act = {0};
+  (void)cxt;
+
   to_action(f, &act);
+
   if (act.todo) return;
 
   if (act.inject_is_user_def)
@@ -2106,7 +2069,7 @@ gen_definition(char *fname, char *openmode, struct emit_option * option, struct 
     fclose(fp);
 }
 
-static void
+void
 gen_definition_list(
   char *folder,
   struct emit_option *opt,
@@ -2128,7 +2091,7 @@ gen_definition_list(
   }
 }
 
-static char*
+char*
 field_to_string(
   void *cxt,
   void (*emitter)(void *cxt, FILE *fp, struct jc_field *),
