@@ -15,19 +15,19 @@ TEST_JSON    := test-json-extract-inject \
                 test-json-scanf-E \
                 test-json-scanf-array \
                 test-json-scanf \
-                test-json-string \
-                test-json-struct
+                test-json-string
 
 TEST_LOGCONF := test-logconf
 
 TEST_NTL     := test-ntl
 
 TEST_SPECS   := test-ns \
+                test-json-struct \
                 test-spec
 
 TEST_UTF8    := test-utf8
 
-EXES := $(TEST_JSON) $(TEST_LOGCONF) $(TEST_NTL) $(TEST_SPECS) $(TEST_UTF8)
+EXES := $(TEST_JSON) $(TEST_LOGCONF) $(TEST_NTL) $(TEST_UTF8)
 
 CFLAGS  += -I$(TOP) -O0 -g -pthread -Wall
 LDFLAGS +=
