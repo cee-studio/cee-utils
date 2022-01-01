@@ -6,8 +6,8 @@ TEST_DIR := test
 SRC := $(wildcard *.c)
 OBJS := $(SRC:%.c=$(OBJDIR)/%.o)
 
-CFLAGS += -std=c89 -O0 -g            \
-          -Wall -Wno-unused-function \
+CFLAGS += -O0 -g                  \
+          -Wall -Wextra -pedantic \
           -I. -DLOG_USE_COLOR
 
 ifneq ($(release),1)
@@ -16,12 +16,6 @@ endif
 
 ifeq ($(DEBUG_JSON),1)
 	CFLAGS += -D_STRICT_STATIC_DEBUG
-endif
-
-ifeq ($(CC),stensal-c)
-	CFLAGS += -D_DEFAULT_SOURCE
-else
-	CFLAGS += -fPIC -D_XOPEN_SOURCE=700
 endif
 
 LDFLAGS +=
