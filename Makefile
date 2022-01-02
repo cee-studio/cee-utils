@@ -1,14 +1,16 @@
 CC ?= gcc
 
-OBJDIR   := obj
-TEST_DIR := test
+OBJDIR     := obj
+TEST_DIR   := test
+THIRDP_DIR := third-party
 
-SRC := $(wildcard *.c)
-OBJS := $(SRC:%.c=$(OBJDIR)/%.o)
+THIRDP_SRC := $(wildcard $(THIRDP_DIR)/*.c)
+SRC        := $(wildcard *.c)
 
-CFLAGS += -O0 -g                  \
-          -Wall -Wextra -pedantic \
-          -I. -DLOG_USE_COLOR
+export OBJS := $(SRC:%.c=$(OBJDIR)/%.o) $(THIRDP_SRC:$(THIRDP_DIR)/%.c=$(OBJDIR)/%.o)
+
+CFLAGS += -O0 -g                              \
+          -I. -I$(THIRDP_DIR) -DLOG_USE_COLOR
 
 ifneq ($(release),1)
 	CFLAGS += -D_STATIC_DEBUG
@@ -18,10 +20,12 @@ ifeq ($(DEBUG_JSON),1)
 	CFLAGS += -D_STRICT_STATIC_DEBUG
 endif
 
-LDFLAGS +=
+WFLAGS += -Wall -Wextra -pedantic
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: $(THIRDP_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(WFLAGS) -c -o $@ $<
 
 all: $(OBJS)
 

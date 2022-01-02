@@ -105,13 +105,6 @@ jsmn_strerror(int code)
   ERR("\n\tFailed at: '%.*s'\n\t%s(code: %d) %s", (int)size, json,            \
       jsmn_code_print(code), code, jsmn_strerror(code))
 
-static int strong_type = 1;
-void
-json_actor_strong_type(int b)
-{
-  strong_type = b;
-}
-
 /*
  * convert address to line and column
  */
@@ -1405,8 +1398,7 @@ inject_format_string(char *pos,
   char *p = NULL;
   char *format;
   cee_strndup(sbuf->start, sbuf->size, &format);
-  switch(n)
-  {
+  switch (n) {
   case 1:
     cee_asprintf(&p, format, args[0]._);
     break;
@@ -1421,15 +1413,15 @@ inject_format_string(char *pos,
     break;
   case 5:
     cee_asprintf(&p, format, args[0]._, args[1]._, args[2]._, args[3]._,
-             args[4]._);
+                 args[4]._);
     break;
   case 6:
-    cee_asprintf(&p, format, args[0]._, args[1]._, args[2]._, args[3]._, args[4]._,
-             args[5]._);
+    cee_asprintf(&p, format, args[0]._, args[1]._, args[2]._, args[3]._,
+                 args[4]._, args[5]._);
     break;
   case 7:
-    cee_asprintf(&p, format, args[0]._, args[1]._, args[2]._, args[3]._, args[4]._,
-             args[5]._, args[6]._);
+    cee_asprintf(&p, format, args[0]._, args[1]._, args[2]._, args[3]._,
+                 args[4]._, args[5]._, args[6]._);
     break;
   default:
     ERR("format string '%s' has %d, which is more than 8 arguments\n", format,
@@ -1843,13 +1835,8 @@ extract_str(struct action *v, int i, struct extraction_info *info)
   jsmntok_t *tokens = info->tokens;
   char *json = info->pos;
   if (JSMN_STRING != tokens[i].type && JSMN_PRIMITIVE != tokens[i].type) {
-    if (strong_type) {
-      print_tok(stderr, json, tokens, i);
-      ERR("expected string");
-    }
-    else {
-      return 0;
-    }
+    print_tok(stderr, json, tokens, i);
+    ERR("expected string");
   }
 
   bool is_null = false;
@@ -1912,13 +1899,8 @@ extract_scalar(struct action *a, int i, struct extraction_info *info)
   jsmntok_t *tokens = info->tokens;
   char *json = info->pos, *xend; /* exclusive end */
   if (tokens[i].type != JSMN_PRIMITIVE && tokens[i].type != JSMN_STRING) {
-    if (strong_type) {
-      print_tok(stderr, json, tokens, i);
-      ERR("Token is not a primitive or string");
-    }
-    else {
-      return 0;
-    }
+    print_tok(stderr, json, tokens, i);
+    ERR("Token is not a primitive or string");
   }
 
   bool is_null = false;
