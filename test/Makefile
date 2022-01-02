@@ -4,7 +4,6 @@ TOP = ..
 CC ?= gcc
 
 OBJDIR     := $(TOP)/obj
-THIRDP_DIR := $(TOP)/third-party
 
 OBJS   ?= $(wildcard $(OBJDIR)/*.o)
 
@@ -31,7 +30,7 @@ TEST_UTF8    := test-utf8
 
 EXES := $(TEST_JSON) $(TEST_LOGCONF) $(TEST_NTL) $(TEST_UTF8)
 
-CFLAGS  += -I$(TOP) -I$(THIRDP_DIR) -O0 -g -pthread -Wall
+CFLAGS  += -I$(TOP) -O0 -g -pthread -Wall
 LDFLAGS +=
 
 all: $(EXES)
@@ -44,7 +43,6 @@ echo:
 	@ echo -e 'CC: $(CC)\n'
 	@ echo -e 'EXES: $(EXES)\n'
 	@ echo -e 'OBJS: $(OBJS)\n'
-	@ echo -e 'THIRDP_DIR: $(THIRDP_DIR)\n'
 
 clean:
 	rm -rf $(EXES)

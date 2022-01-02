@@ -29,21 +29,21 @@ ntl.c
 ntl.h
 cee-utils.c
 cee-utils.h
-third-party/jsmn.h
-third-party/cJSON.c
-third-party/cJSON.h
-third-party/json-string.c
-third-party/url-encode.h
-third-party/cee-data-sizes.h
-third-party/greatest.h
-third-party/utf8.h
-third-party/utarray.h
-third-party/uthash.h
-third-party/utlist.h
-third-party/utringbuffer.h
-third-party/utstack.h
-third-party/utstring.h
-third-party/HttpStatusCodes_C.h
+jsmn.h
+cJSON.c
+cJSON.h
+json-string.c
+url-encode.h
+cee-data-sizes.h
+greatest.h
+utf8.h
+utarray.h
+uthash.h
+utlist.h
+utringbuffer.h
+utstack.h
+utstring.h
+HttpStatusCodes_C.h
 "
 
 mkdir -p $mypath/../cee-utils
