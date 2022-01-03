@@ -11,11 +11,7 @@ TEST_JSON    := test-json-extract-inject \
                 test-json-extractor \
                 test-json-injector-1 \
                 test-json-injector \
-                test-json-load \
                 test-json-parser \
-                test-json-scanf-E \
-                test-json-scanf-array \
-                test-json-scanf \
                 test-json-string
 
 TEST_LOGCONF := test-logconf
@@ -31,7 +27,7 @@ TEST_UTF8    := test-utf8
 EXES := $(TEST_JSON) $(TEST_LOGCONF) $(TEST_NTL) $(TEST_UTF8)
 
 CFLAGS  += -I$(TOP) -O0 -g -pthread -Wall
-LDFLAGS +=
+LDFLAGS += -lm
 
 all: $(EXES)
 
