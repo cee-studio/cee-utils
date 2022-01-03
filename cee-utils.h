@@ -98,6 +98,13 @@ void cee_sized_buffer_from_json(char *str,
                                 struct sized_buffer *buf);
 
 /**
+ * @brief Get the difference between UTC and the latest local standard time, in
+ *        seconds.
+ * @return difference between UTC and local time in seconds
+ */
+long cee_timezone(void);
+
+/**
  * @brief Convert a iso8601 string to a unix timestamp (milliseconds)
  *
  * Can be matched to the json_extract() and json_inject() %F specifier

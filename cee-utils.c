@@ -62,41 +62,47 @@ cee_sized_buffer_from_json(char *str, size_t len, struct sized_buffer *buf)
   buf->size = cee_strndup(str, len, &buf->start);
 }
 
+long
+cee_timezone(void)
+{
+  const time_t epoch_plus_11h = 60 * 60 * 11;
+  const int local_time = localtime(&epoch_plus_11h)->tm_hour * 60 * 60;
+  const int gm_time = gmtime(&epoch_plus_11h)->tm_hour * 60 *60;
+
+  return local_time - gm_time;
+}
+
 int
 cee_iso8601_to_unix_ms(char *str, size_t len, uint64_t *p_value)
 {
   (void)len;
   double seconds = 0.0;
-  char tz_operator = 'Z';
+  int tz_operator = 'Z';
   int tz_hour = 0, tz_min = 0;
-  struct tm tm;
-  uint64_t res;
+  struct tm tm = { 0 };
+  int ret;
 
-  memset(&tm, 0, sizeof(tm));
-
-  sscanf(str, "%d-%d-%dT%d:%d:%lf%c%d:%d", /* ISO-8601 complete format */
-         &tm.tm_year, &tm.tm_mon, &tm.tm_mday, /* Date */
-         &tm.tm_hour, &tm.tm_min, &seconds, /* Time */
-         &tz_operator, &tz_hour, &tz_min); /* Timezone */
+  /* ISO-8601 complete format */
+  ret = sscanf(str, "%d-%d-%dT%d:%d:%lf%d%d:%d", &tm.tm_year, &tm.tm_mon,
+               &tm.tm_mday, /* Date */
+               &tm.tm_hour, &tm.tm_min, &seconds, /* Time */
+               &tz_operator, &tz_hour, &tz_min); /* Timezone */
 
   tm.tm_mon--; /* struct tm takes month from 0 to 11 */
   tm.tm_year -= 1900; /* struct tm takes years from 1900 */
 
-  res =
-    (((uint64_t)mktime(&tm) - timezone) * 1000) + (uint64_t)seconds * 1000.0;
+  *p_value = (((uint64_t)mktime(&tm) + cee_timezone()) * 1000) + (uint64_t)seconds * 1000.0;
   switch (tz_operator) {
   case '+': /* Add hours and minutes */
-    res += (tz_hour * 60 + tz_min) * 60 * 1000;
+    *p_value += (tz_hour * 60 + tz_min) * 60 * 1000;
     break;
   case '-': /* Subtract hours and minutes */
-    res -= (tz_hour * 60 + tz_min) * 60 * 1000;
+    *p_value -= (tz_hour * 60 + tz_min) * 60 * 1000;
     break;
   case 'Z': /* UTC, don't do anything */
   default: /* @todo should we check for error ? */
     break;
   }
-
-  *p_value = res;
 
   return 1; /* SUCCESS */
 }
@@ -104,10 +110,9 @@ cee_iso8601_to_unix_ms(char *str, size_t len, uint64_t *p_value)
 int
 cee_unix_ms_to_iso8601(char *str, size_t len, uint64_t *p_value)
 {
-  time_t seconds = *p_value / 1000;
+  time_t seconds = (*p_value / 1000) - cee_timezone();
   int millis = *p_value % 1000;
 
-  seconds += timezone;
   struct tm buf;
   struct tm *tm = localtime_r(&seconds, &buf);
 
