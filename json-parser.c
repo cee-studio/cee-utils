@@ -22,11 +22,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#include <math.h> /* for isfinite() */
+#include <math.h> /* for ceil() */
 #include <float.h> /* for DBL_DECIMAL_DIG */
 #include <limits.h>
 #ifndef DBL_DECIMAL_DIG
@@ -40,8 +39,7 @@
 
 #define IN_RANGE(n, lo, hi) (((n) > (lo)) && ((n) < (hi)))
 
-#define DOUBLE_IS_INTEGER(d)                                                  \
-  ((d) <= LLONG_MIN || (d) >= LLONG_MAX || (d) == (long long)(d))
+#define DOUBLE_IS_INTEGER(d) (ceil(d) == (d))
 
 #define IS_BLANK_CHAR(c)         (isspace(c) || iscntrl(c))
 #define CONSUME_BLANK_CHARS(str) for (; IS_BLANK_CHAR(*str); ++str)
@@ -69,8 +67,8 @@
  *      p_item: reference to the item the composite is part of */
 typedef struct json_composite_s {
   struct json_item_s **branch;
-  size_t num_branch;
-  size_t last_accessed_branch;
+  long num_branch;
+  long last_accessed_branch;
   struct json_item_s *p_item;
 } json_composite_t;
 
@@ -82,16 +80,16 @@ typedef struct json_composite_s {
  *      string,d_number,i_number,boolean: item literal value, denoted
  *      by its type.  */
 struct json_item_s {
-  union {
-    struct sized_buffer string;
-    long double number;
-    _Bool boolean;
-    json_composite_t *comp;
-  };
-  enum json_type type;
-
   char *key;
   struct json_item_s *parent;
+  enum json_type type;
+
+  union {
+    struct sized_buffer string;
+    double number;
+    int boolean;
+    json_composite_t *comp;
+  } val;
 };
 
 struct _parse_context {
@@ -121,23 +119,23 @@ _json_item_init()
 static json_item_t *
 _json_branch_init(json_item_t *item)
 {
-  ++item->comp->num_branch;
+  ++item->val.comp->num_branch;
 
-  item->comp->branch[item->comp->num_branch - 1] = _json_item_init();
+  item->val.comp->branch[item->val.comp->num_branch - 1] = _json_item_init();
 
-  item->comp->branch[item->comp->num_branch - 1]->parent = item;
+  item->val.comp->branch[item->val.comp->num_branch - 1]->parent = item;
 
-  return item->comp->branch[item->comp->num_branch - 1];
+  return item->val.comp->branch[item->val.comp->num_branch - 1];
 }
 
 static void
 _json_composite_cleanup(json_item_t *item)
 {
-  free(item->comp->branch);
-  item->comp->branch = NULL;
+  free(item->val.comp->branch);
+  item->val.comp->branch = NULL;
 
-  free(item->comp);
-  item->comp = NULL;
+  free(item->val.comp);
+  item->val.comp = NULL;
 }
 
 static void
@@ -146,16 +144,17 @@ _json_preorder_cleanup(json_item_t *item)
   switch (item->type) {
   case JSON_OBJECT:
   case JSON_ARRAY: {
-    size_t i;
-    for (i = 0; i < item->comp->num_branch; ++i) {
-      _json_preorder_cleanup(item->comp->branch[i]);
+    long i;
+
+    for (i = 0; i < item->val.comp->num_branch; ++i) {
+      _json_preorder_cleanup(item->val.comp->branch[i]);
     }
     _json_composite_cleanup(item);
     break;
   }
   case JSON_STRING:
-    free(item->string.start);
-    item->string.start = NULL;
+    free(item->val.string.start);
+    item->val.string.start = NULL;
     break;
   default:
     break;
@@ -178,7 +177,7 @@ json_cleanup(json_item_t *item)
 }
 
 static json_composite_t *
-_json_decode_composite(char **p_buffer, size_t n_branch)
+_json_decode_composite(char **p_buffer, long n_branch)
 {
   json_composite_t *new_comp = calloc(1, sizeof *new_comp);
   ASSERT_S(NULL != new_comp, "Out of memory");
@@ -195,9 +194,12 @@ static char *
 _json_decode_string(char **p_buffer, size_t *len)
 {
   char *start = *p_buffer;
-  ASSERT_S('\"' == *start, "Not a string");
+  char *end;
+  char *str = NULL;
 
-  char *end = ++start;
+  ASSERT_S('\"' == *start, "Not a string");
+  end = ++start;
+
   while (('\0' != *end) && ('\"' != *end)) {
     if ('\\' == *end++) { /* skips escaped characters */
       ++end;
@@ -206,18 +208,18 @@ _json_decode_string(char **p_buffer, size_t *len)
   ASSERT_S('\"' == *end, "Not a string");
 
   *p_buffer = end + 1;
-
   *len = end - start;
-  char *str = NULL;
   cee_strndup(start, *len, &str);
+
   return str;
 }
 
-static long double
+static double
 _json_decode_number(char **p_buffer)
 {
   char *start = *p_buffer;
   char *end = start;
+  char numstr[MAX_INTEGER_DIG + 1];
 
   /* 1st STEP: check for a minus sign and skip it */
   if ('-' == *end) {
@@ -248,24 +250,24 @@ _json_decode_number(char **p_buffer)
   }
 
   /* 5th STEP: convert string to number and return its value */
-  char numstr[MAX_INTEGER_DIG];
-  snprintf(numstr, MAX_INTEGER_DIG, "%.*s", (int)(end - start), start);
+  sprintf(numstr, "%.*s", MAX_INTEGER_DIG, start);
 
   *p_buffer = end; /* skips entire length of number */
 
-  DS_PRINT("%.*s, %Ld", (int)(end - start), start, strtod(numstr, NULL));
+  DS_PRINT("%.*s, %f", (int)(end - start), start, strtod(numstr, NULL));
+
   return strtod(numstr, NULL);
 }
 
-static bool
+static int
 _json_decode_boolean(char **p_buffer)
 {
   if ('t' == **p_buffer) {
     *p_buffer += 4; /* skips length of "true" */
-    return true;
+    return 1;
   }
   *p_buffer += 5; /* skips length of "false" */
-  return false;
+  return 0;
 }
 
 static void
@@ -278,17 +280,17 @@ _json_decode_null(char **p_buffer)
 static void
 _json_value_set_string(json_item_t *item, struct _parse_context *cxt)
 {
-  item->type = JSON_STRING;
-
   size_t size = 0;
   char *str = _json_decode_string(&cxt->buffer, &size);
-
   char *unstr = NULL; /* unescape string */
-  if (!json_string_unescape(&unstr, &item->string.size, str, size)) {
+
+  item->type = JSON_STRING;
+
+  if (!json_string_unescape(&unstr, &item->val.string.size, str, size)) {
     ERR("(Internal Error) Cannot unescape an ill-formed-string %.*s",
         (int)size, str);
   }
-  item->string.start = unstr;
+  item->val.string.start = unstr;
 }
 
 /* fetch number json type by parsing string,
@@ -297,14 +299,14 @@ static void
 _json_value_set_number(json_item_t *item, struct _parse_context *cxt)
 {
   item->type = JSON_NUMBER;
-  item->number = _json_decode_number(&cxt->buffer);
+  item->val.number = _json_decode_number(&cxt->buffer);
 }
 
 static void
 _json_value_set_boolean(json_item_t *item, struct _parse_context *cxt)
 {
   item->type = JSON_BOOLEAN;
-  item->boolean = _json_decode_boolean(&cxt->buffer);
+  item->val.boolean = _json_decode_boolean(&cxt->buffer);
 }
 
 static void
@@ -321,8 +323,8 @@ _json_count_property(char *buffer)
       inner string is found, as it might contain a delim character that
       if not treated as a string will incorrectly trigger
       depth action*/
-  size_t depth = 0;
-  size_t num_branch = 0;
+  size_t depth = 0, num_branch = 0;
+
   do {
     switch (*buffer) {
     case ':':
@@ -362,7 +364,7 @@ _json_value_set_object(json_item_t *item, struct _parse_context *cxt)
 {
   item->type = JSON_OBJECT;
 
-  item->comp =
+  item->val.comp =
     _json_decode_composite(&cxt->buffer, _json_count_property(cxt->buffer));
 }
 
@@ -373,8 +375,8 @@ _json_count_element(char *buffer)
       inner string is found, as it might contain a delim character that
       if not treated as a string will incorrectly trigger
       depth action*/
-  size_t depth = 0;
-  size_t num_branch = 0;
+  size_t depth = 0, num_branch = 0;
+
   do {
     switch (*buffer) {
     case ',':
@@ -414,7 +416,7 @@ _json_value_set_array(json_item_t *item, struct _parse_context *cxt)
 {
   item->type = JSON_ARRAY;
 
-  item->comp =
+  item->val.comp =
     _json_decode_composite(&cxt->buffer, _json_count_element(cxt->buffer));
 }
 
@@ -440,6 +442,7 @@ static json_item_t *
 _json_wrap_composite(json_item_t *item, struct _parse_context *cxt)
 {
   ++cxt->buffer; /* skips '}' or ']' */
+
   return item->parent;
 }
 
@@ -534,15 +537,16 @@ _json_array_build(json_item_t *item, struct _parse_context *cxt)
   /* fall through */
   default: {
     /* creates numerical key for the array element */
-    char numkey[MAX_INTEGER_DIG];
-    snprintf(numkey, MAX_INTEGER_DIG - 1, "%zu", item->comp->num_branch);
+    char numkey[MAX_INTEGER_DIG + 1];
+    int len;
+
+    len = sprintf(numkey, "%*ld", MAX_INTEGER_DIG, item->val.comp->num_branch);
 
     ASSERT_S(NULL == cxt->key, "Memory wasn't free'd");
-    cxt->key = strdup(numkey);
+    cee_strndup(numkey, len, &cxt->key);
     ASSERT_S(NULL != cxt->key, "Out of memory");
-
-    return _json_branch_build(item, cxt);
   }
+    return _json_branch_build(item, cxt);
   }
 
   /* token error checking done inside _json_branch_build */
@@ -555,26 +559,32 @@ static json_item_t *
 _json_object_build(json_item_t *item, struct _parse_context *cxt)
 {
   CONSUME_BLANK_CHARS(cxt->buffer);
+
   switch (*cxt->buffer) {
   case '}': /*OBJECT WRAPPER DETECTED*/
     return _json_wrap_composite(item, cxt);
   case ',': /*NEXT PROPERTY TOKEN*/
     ++cxt->buffer; /* skips ',' */
+
     CONSUME_BLANK_CHARS(cxt->buffer);
   /* fall through */
   case '\"': { /*KEY STRING DETECTED*/
-    ASSERT_S(NULL == cxt->key, "Memory wasn't free'd");
     size_t noop = 0;
+    ASSERT_S(NULL == cxt->key, "Memory wasn't free'd");
+
     cxt->key = _json_decode_string(&cxt->buffer, &noop);
     ASSERT_S(':' == *cxt->buffer, "Missing colon after key");
+
     ++cxt->buffer; /* skips ':' */
     CONSUME_BLANK_CHARS(cxt->buffer);
+
     return _json_branch_build(item, cxt);
   }
   default:
     if (!IS_BLANK_CHAR(*cxt->buffer)) ERR("%s", "Unexpected token");
 
     CONSUME_BLANK_CHARS(cxt->buffer);
+
     return item;
   }
 }
@@ -637,15 +647,16 @@ token_error:
 json_item_t *
 json_parse(char *buffer, size_t len)
 {
-  json_item_t *root = calloc(1, sizeof *root);
+  json_item_t *root, *item;
+  struct _parse_context cxt = { NULL };
+
+  cxt.buffer = buffer;
+
+  root = calloc(1, sizeof *root);
   if (NULL == root) return NULL;
 
-  struct _parse_context cxt = {
-    .buffer = buffer,
-  };
-
   /* build while item and buffer aren't nulled */
-  json_item_t *item = root;
+  item = root;
   while ((NULL != item) && ((size_t)(cxt.buffer - buffer) < len)
          && ('\0' != *cxt.buffer))
   {
@@ -673,11 +684,13 @@ json_parse(char *buffer, size_t len)
 static json_item_t *
 _json_new(const char *key, enum json_type type)
 {
-  json_item_t *new_item = malloc(sizeof *new_item);
+  json_item_t *new_item;
+
+  new_item = malloc(sizeof *new_item);
   if (NULL == new_item) return NULL;
 
   if (NULL != key) {
-    new_item->key = strdup(key);
+    cee_strndup(key, strlen(key), &new_item->key);
     if (NULL == new_item->key) {
       free(new_item);
       return NULL;
@@ -700,23 +713,27 @@ json_null(const char *key)
 }
 
 json_item_t *
-json_boolean(const char *key, bool boolean)
+json_boolean(const char *key, int boolean)
 {
-  json_item_t *new_item = _json_new(key, JSON_BOOLEAN);
+  json_item_t *new_item;
+
+  new_item = _json_new(key, JSON_BOOLEAN);
   if (NULL == new_item) return NULL;
 
-  new_item->boolean = boolean;
+  new_item->val.boolean = boolean;
 
   return new_item;
 }
 
 json_item_t *
-json_number(const char *key, long double number)
+json_number(const char *key, double number)
 {
-  json_item_t *new_item = _json_new(key, JSON_NUMBER);
+  json_item_t *new_item;
+
+  new_item = _json_new(key, JSON_NUMBER);
   if (NULL == new_item) return NULL;
 
-  new_item->number = number;
+  new_item->val.number = number;
 
   return new_item;
 }
@@ -724,14 +741,16 @@ json_number(const char *key, long double number)
 json_item_t *
 json_string(const char *key, char *string)
 {
+  json_item_t *new_item;
+
   if (NULL == string) return json_null(key);
 
-  json_item_t *new_item = _json_new(key, JSON_STRING);
+  new_item = _json_new(key, JSON_STRING);
   if (NULL == new_item) return NULL;
 
-  new_item->string.start = strdup(string);
-  new_item->string.size = strlen(string);
-  if (NULL == new_item->string.start) goto cleanupA;
+  new_item->val.string.size =
+    cee_strndup(string, strlen(string), &new_item->val.string.start);
+  if (NULL == new_item->val.string.start) goto cleanupA;
 
   return new_item;
 
@@ -745,19 +764,21 @@ cleanupA:
 static json_item_t *
 _json_composite(const char *key, enum json_type type)
 {
-  json_item_t *new_item = _json_new(key, type);
+  json_item_t *new_item;
+
+  new_item = _json_new(key, type);
   if (NULL == new_item) return NULL;
 
-  new_item->comp = calloc(1, sizeof *new_item->comp);
-  if (NULL == new_item->comp) goto cleanupA;
+  new_item->val.comp = calloc(1, sizeof *new_item->val.comp);
+  if (NULL == new_item->val.comp) goto cleanupA;
 
-  new_item->comp->branch = malloc(sizeof(json_item_t *));
-  if (NULL == new_item->comp->branch) goto cleanupB;
+  new_item->val.comp->branch = malloc(sizeof(json_item_t *));
+  if (NULL == new_item->val.comp->branch) goto cleanupB;
 
   return new_item;
 
 cleanupB:
-  free(new_item->comp);
+  free(new_item->val.comp);
 cleanupA:
   free(new_item->key);
   free(new_item);
@@ -778,27 +799,30 @@ json_array(const char *key)
 }
 
 /* total branches the item possess, returns 0 if item type is primitive */
-size_t
+long
 json_size(const json_item_t *item)
 {
-  return IS_COMPOSITE(item) ? item->comp->num_branch : 0;
+  return IS_COMPOSITE(item) ? item->val.comp->num_branch : 0;
 }
 
 json_item_t *
 json_append(json_item_t *item, json_item_t *new_branch)
 {
+  char *hold_key = NULL;
+  json_item_t **tmp;
+
   ASSERT_S(new_branch != item, "Can't perform circular append");
 
-  char *hold_key = NULL; /* hold new_branch->key incase we can't allocate
-                            memory for new numerical key */
   switch (item->type) {
   case JSON_ARRAY: {
+    char numkey[MAX_INTEGER_DIG + 1];
+    int len;
+
     hold_key = new_branch->key;
+    len = sprintf(numkey, "%*ld", MAX_INTEGER_DIG, item->val.comp->num_branch);
 
-    char numkey[MAX_INTEGER_DIG];
-    snprintf(numkey, MAX_INTEGER_DIG - 1, "%zu", item->comp->num_branch);
+    cee_strndup(numkey, len, &new_branch->key);
 
-    new_branch->key = strdup(numkey);
     if (NULL == new_branch->key)
       goto cleanupA; /* Out of memory, reattach its old key and return NULL */
   }
@@ -810,20 +834,18 @@ json_append(json_item_t *item, json_item_t *new_branch)
   }
 
   /* realloc parent references to match new size */
-  json_item_t **tmp = realloc(item->comp->branch, (1 + item->comp->num_branch)
-                                                    * sizeof(json_item_t *));
+  tmp = realloc(item->val.comp->branch,
+                (1 + item->val.comp->num_branch) * sizeof(json_item_t *));
   if (NULL == tmp) goto cleanupB;
 
-  item->comp->branch = tmp;
+  item->val.comp->branch = tmp;
 
-  ++item->comp->num_branch;
+  ++item->val.comp->num_branch;
 
-  item->comp->branch[item->comp->num_branch - 1] = new_branch;
+  item->val.comp->branch[item->val.comp->num_branch - 1] = new_branch;
   new_branch->parent = item;
 
-  if (hold_key != NULL) {
-    free(hold_key);
-  }
+  if (hold_key != NULL) free(hold_key);
 
   return new_branch;
 
@@ -836,21 +858,23 @@ cleanupA:
 }
 
 /* return next (not yet accessed) item, by using
- * item->comp->last_accessed_branch as the branch index */
+ * item->val.comp->last_accessed_branch as the branch index */
 static json_item_t *
 _json_push(json_item_t *item)
 {
+  json_item_t *next_item;
+
   ASSERT_S(IS_COMPOSITE(item), "Not a composite");
-  ASSERT_S(item->comp->last_accessed_branch < item->comp->num_branch,
+  ASSERT_S(item->val.comp->last_accessed_branch < item->val.comp->num_branch,
            "Integer overflow");
 
-  ++item->comp->last_accessed_branch; /* update last_accessed_branch to next */
-  json_item_t *next_item =
-    item->comp->branch[item->comp->last_accessed_branch - 1];
+  ++item->val.comp
+      ->last_accessed_branch; /* update last_accessed_branch to next */
+  next_item = item->val.comp->branch[item->val.comp->last_accessed_branch - 1];
 
   if (IS_COMPOSITE(next_item)) {
     /* resets next_item that might have been set from a different run */
-    next_item->comp->last_accessed_branch = 0;
+    next_item->val.comp->last_accessed_branch = 0;
   }
 
   return next_item;
@@ -861,15 +885,15 @@ _json_pop(json_item_t *item)
 {
   if (IS_COMPOSITE(item)) {
     /* resets object's last_accessed_branch */
-    item->comp->last_accessed_branch = 0;
+    item->val.comp->last_accessed_branch = 0;
   }
 
   return item->parent;
 }
 
 /* this will simulate tree preorder traversal iteratively, by using
- *  item->comp->last_accessed_branch like a stack frame. under no circumstance
- *  should you modify last_accessed_branch value directly */
+ *  item->val.comp->last_accessed_branch like a stack frame. under no
+ * circumstance should you modify last_accessed_branch value directly */
 json_item_t *
 json_iter_next(json_item_t *item)
 {
@@ -877,7 +901,7 @@ json_iter_next(json_item_t *item)
 
   /* resets root's last_accessed_branch in case its set from a different run */
   if (IS_COMPOSITE(item)) {
-    item->comp->last_accessed_branch = 0;
+    item->val.comp->last_accessed_branch = 0;
   }
 
   if (IS_LEAF(item)) {
@@ -886,12 +910,13 @@ json_iter_next(json_item_t *item)
     do {
       /* fetch parent until a item with unacessed branch is found */
       item = _json_pop(item);
-      if ((NULL == item) || (0 == item->comp->last_accessed_branch)) {
+      if ((NULL == item) || (0 == item->val.comp->last_accessed_branch)) {
         /* item is unexistent (root's parent) or all of
          *  its branches have been accessed */
         return NULL;
       }
-    } while (item->comp->num_branch == item->comp->last_accessed_branch);
+    } while (item->val.comp->num_branch
+             == item->val.comp->last_accessed_branch);
   }
 
   return _json_push(item);
@@ -906,14 +931,17 @@ json_iter_next(json_item_t *item)
 json_item_t *
 json_clone(json_item_t *item)
 {
+  struct sized_buffer tmp;
+  json_item_t *clone;
+
   if (NULL == item) return NULL;
 
-  struct sized_buffer tmp = json_stringify(item, JSON_ANY);
-  json_item_t *clone = json_parse(tmp.start, tmp.size);
+  tmp = json_stringify(item, JSON_ANY);
+  clone = json_parse(tmp.start, tmp.size);
   free(tmp.start);
 
   if (NULL != item->key) {
-    clone->key = strdup(item->key);
+    cee_strndup(item->key, strlen(item->key), &clone->key);
     if (NULL == clone->key) {
       json_cleanup(clone);
       clone = NULL;
@@ -944,11 +972,13 @@ char *
 json_strdup(const json_item_t *item)
 {
   struct sized_buffer src = { 0 };
+  char *dest = NULL;
+
   src.start = json_get_string(item, &src.size);
   if (NULL == src.start) return NULL;
 
-  char *dest;
   cee_strndup(src.start, src.size, &dest);
+
   return dest;
 }
 
@@ -965,10 +995,11 @@ json_keycmp(const json_item_t *item, const char *key)
 }
 
 int
-json_numcmp(const json_item_t *item, const long double number)
+json_numcmp(const json_item_t *item, const double number)
 {
   ASSERT_S(JSON_NUMBER == item->type, "Not a Number");
-  return !(item->number == number);
+
+  return !(item->val.number == number);
 }
 
 json_item_t *
@@ -985,6 +1016,9 @@ json_get_root(json_item_t *item)
 json_item_t *
 json_get_child(json_item_t *item, const char *key)
 {
+  json_item_t *ji = item;
+  long i;
+
   if (!IS_COMPOSITE(item)) {
     log_error("Can't get child from '%s' (item type is %s)",
               json_get_key(item), json_typeof(item));
@@ -997,23 +1031,23 @@ json_get_child(json_item_t *item, const char *key)
 
   /* search for entry with given key at item's comp,
     and retrieve found or not found(NULL) item */
-  json_item_t *ji = item;
-  size_t i = 0, len;
-  while (i < json_size(ji)) {
-    len = strlen(ji->comp->branch[i]->key);
-    if (STRNEQ(key, ji->comp->branch[i]->key, len)) {
+  ji = item;
+  for (i = 0; i < json_size(ji); ++i) {
+    size_t len = strlen(ji->val.comp->branch[i]->key);
+
+    if (STRNEQ(key, ji->val.comp->branch[i]->key, len)) {
       if ('\0' == key[len]) { /* keys are equal */
-        return ji->comp->branch[i];
+        return ji->val.comp->branch[i];
       }
       if ('.' == key[len]) { /* parent keys are equal */
-        ji = ji->comp->branch[i]; /* get child */
+        ji = ji->val.comp->branch[i]; /* get child */
         i = 0; /* reset branch counter */
         key += len + 1; /* skip to next key */
         continue;
       }
     }
-    ++i;
   }
+
   return NULL;
 }
 
@@ -1021,6 +1055,7 @@ json_item_t *
 json_get_sibling(const json_item_t *item, const char *key)
 {
   ASSERT_S(!IS_ROOT(item), "Item is root (has no siblings)");
+
   return json_get_child(item->parent, key);
 }
 
@@ -1028,12 +1063,14 @@ json_get_sibling(const json_item_t *item, const char *key)
  * (from parent's perspective), and relative index is -1, then this function
  * will return item of index 2 (from parent's perspective) */
 json_item_t *
-json_get_sibling_byindex(const json_item_t *item, const size_t relative_index)
+json_get_sibling_byindex(const json_item_t *item, const long relative_index)
 {
+  long item_index;
+
   ASSERT_S(!IS_ROOT(item), "Item is root (has no siblings)");
 
   /* get parent's branch index of the origin item */
-  size_t item_index = json_get_index(item->parent, item->key);
+  item_index = json_get_index(item->parent, item->key);
 
   if ((0 <= (int)(item_index + relative_index))
       && json_size(item->parent) > (item_index + relative_index))
@@ -1053,32 +1090,37 @@ json_get_parent(const json_item_t *item)
 }
 
 json_item_t *
-json_get_byindex(const json_item_t *item, const size_t index)
+json_get_byindex(const json_item_t *item, const long index)
 {
   ASSERT_S(IS_COMPOSITE(item), "Not a composite");
-  return (index < item->comp->num_branch) ? item->comp->branch[index] : NULL;
+
+  return (index < item->val.comp->num_branch) ? item->val.comp->branch[index]
+                                              : NULL;
 }
 
 long
 json_get_index(const json_item_t *item, const char *key)
 {
-  ASSERT_S(IS_COMPOSITE(item), "Not a composite");
-  size_t i;
+  long i;
   json_item_t *lookup_item = NULL;
-  for (i = 0; i < item->comp->num_branch; ++i) {
-    if (STREQ(item->comp->branch[i]->key, key)) {
-      lookup_item = item->comp->branch[i];
+
+  ASSERT_S(IS_COMPOSITE(item), "Not a composite");
+
+  for (i = 0; i < item->val.comp->num_branch; ++i) {
+    if (STREQ(item->val.comp->branch[i]->key, key)) {
+      lookup_item = item->val.comp->branch[i];
       break;
     }
   }
+
   if (NULL == lookup_item) return -1;
+
   /* @todo currently this is O(n), a possible alternative
    *  is adding a new attribute that stores the item's index */
-  for (i = 0; i < item->comp->num_branch; ++i) {
-    if (lookup_item == item->comp->branch[i]) {
-      return i;
-    }
+  for (i = 0; i < item->val.comp->num_branch; ++i) {
+    if (lookup_item == item->val.comp->branch[i]) return i;
   }
+
   return -1;
 }
 
@@ -1094,13 +1136,13 @@ json_get_key(const json_item_t *item)
   return (NULL != item) ? item->key : NULL;
 }
 
-bool
+int
 json_get_boolean(const json_item_t *item)
 {
-  if (NULL == item || JSON_NULL == item->type) return false;
-
+  if (NULL == item || JSON_NULL == item->type) return 0;
   ASSERT_S(JSON_BOOLEAN == item->type, "Not a boolean");
-  return item->boolean;
+
+  return item->val.boolean;
 }
 
 char *
@@ -1108,38 +1150,45 @@ json_get_string(const json_item_t *item, size_t *len)
 {
   if (NULL == item || JSON_NULL == item->type) return NULL;
   ASSERT_S(JSON_STRING == item->type, "Not a string");
-  if (len) *len = item->string.size;
-  return item->string.start;
+
+  if (len) *len = item->val.string.size;
+
+  return item->val.string.start;
 }
 
-long double
+double
 json_get_number(const json_item_t *item)
 {
   if (NULL == item || JSON_NULL == item->type) return 0.0;
   ASSERT_S(JSON_NUMBER == item->type, "Not a Number");
-  return item->number;
+
+  return item->val.number;
 }
 
 json_item_t *
-json_set_boolean(json_item_t *item, bool boolean)
+json_set_boolean(json_item_t *item, int boolean)
 {
-  item->boolean = boolean;
+  item->val.boolean = boolean;
+
   return item;
 }
 
 json_item_t *
 json_set_string(json_item_t *item, char *string)
 {
-  if (item->string.start) free(item->string.start);
-  item->string.start = strdup(string);
-  item->string.size = strlen(string);
+  if (item->val.string.start) free(item->val.string.start);
+
+  item->val.string.size =
+    cee_strndup(string, strlen(string), &item->val.string.start);
+
   return item;
 }
 
 json_item_t *
-json_set_number(json_item_t *item, long double number)
+json_set_number(json_item_t *item, double number)
 {
-  item->number = number;
+  item->val.number = number;
+
   return item;
 }
 
@@ -1183,55 +1232,54 @@ _json_cxt_apply_string(char *string, struct _stringify_context *cxt)
 
 /* converts number to string and store it in p_str */
 static void
-_json_number_tostr(const long double number, char *p_str)
+_json_number_tostr(const double number, char *p_str)
 {
+  char *p_last;
+  char *tmp;
+
   if (DOUBLE_IS_INTEGER(number)) {
     /* save time and convert integer to string */
-    sprintf(p_str, "%.Lf", number);
+    sprintf(p_str, "%.f", number);
     return;
   }
 
-  sprintf(p_str, "%.*Le", DBL_DECIMAL_DIG - 1, number);
+  sprintf(p_str, "%.*e", DBL_DECIMAL_DIG - 1, number);
 
-  if (isfinite(number)) {
-    char *p_last;
-    char *tmp;
+  if ('0' == p_str[strlen(p_str) - 1]) { /* 00 terminating exp */
+    p_last =
+      &p_str[strlen(p_str) - 1]; /* address of last digit, including exp */
+    tmp = p_last;
 
-    if ('0' == p_str[strlen(p_str) - 1]) { /* 00 terminating exp */
-      p_last =
-        &p_str[strlen(p_str) - 1]; /* address of last digit, including exp */
-      tmp = p_last;
-
-      while ('0' == *tmp) /* trim trailing zeroes */
-        --tmp;
-
-      /* trim exp related characters */
-      if ('+' == *tmp || '-' == *tmp) --tmp;
-      if ('e' == *tmp || 'E' == *tmp) --tmp;
-    }
-    else { /* get address of last significand digit */
-      p_last = (number < 0)
-                 ? &p_str[DBL_DECIMAL_DIG + 1] /* account for minus sign */
-                 : &p_str[DBL_DECIMAL_DIG];
-      tmp = p_last;
-    }
-
-    while ('0' == *tmp) { /* trim trailing zeroes */
+    while ('0' == *tmp) /* trim trailing zeroes */
       --tmp;
-    }
 
-    memmove(tmp + 1, p_last + 1, strlen(p_last + 1) + 1);
+    /* trim exp related characters */
+    if ('+' == *tmp || '-' == *tmp) --tmp;
+    if ('e' == *tmp || 'E' == *tmp) --tmp;
   }
+  else { /* get address of last significand digit */
+    p_last = (number < 0)
+               ? &p_str[DBL_DECIMAL_DIG + 1] /* account for minus sign */
+               : &p_str[DBL_DECIMAL_DIG];
+    tmp = p_last;
+  }
+
+  while ('0' == *tmp) { /* trim trailing zeroes */
+    --tmp;
+  }
+
+  memmove(tmp + 1, p_last + 1, strlen(p_last + 1) + 1);
 }
 
 /* get number converted to string and then perform buffer method calls */
 static void
-_json_cxt_apply_number(long double number, struct _stringify_context *cxt)
+_json_cxt_apply_number(double number, struct _stringify_context *cxt)
 {
   /*             sign + digit + dp +       digits        + e + sign + expo + \0
        get_strnum[ 1  +  1    + 1  + (DBL_DECIMAL_DIG-1) + 1 +  1   +  5   +
      1] */
   char get_strnum[11 + (DBL_DECIMAL_DIG - 1)];
+
   _json_number_tostr(number, get_strnum);
   _json_cxt_apply_string(get_strnum, cxt); /* store value in cxt */
 }
@@ -1243,6 +1291,9 @@ _json_stringify_preorder(json_item_t *item,
                          enum json_type type,
                          struct _stringify_context *cxt)
 {
+  long first_index = 0;
+  long j;
+
   /* 1st STEP: stringify json item only if it match the type
       given as parameter or is a composite type item */
   if (!json_typecmp(item, type) && !IS_COMPOSITE(item)) return;
@@ -1262,18 +1313,18 @@ _json_stringify_preorder(json_item_t *item,
     _json_cxt_apply_string("null", cxt);
     break;
   case JSON_BOOLEAN:
-    if (item->boolean) {
+    if (item->val.boolean) {
       _json_cxt_apply_string("true", cxt);
       break;
     }
     _json_cxt_apply_string("false", cxt);
     break;
   case JSON_NUMBER:
-    _json_cxt_apply_number(item->number, cxt);
+    _json_cxt_apply_number(item->val.number, cxt);
     break;
   case JSON_STRING:
     (*cxt->method)('\"', cxt);
-    _json_cxt_apply_string(item->string.start, cxt);
+    _json_cxt_apply_string(item->val.string.start, cxt);
     (*cxt->method)('\"', cxt);
     break;
   case JSON_OBJECT:
@@ -1303,14 +1354,11 @@ _json_stringify_preorder(json_item_t *item,
 
   /* 5th STEP: find first item's branch that matches the given type, and
       calls the write function on it */
-  size_t j;
-  size_t first_index = 0;
-
-  while (first_index < item->comp->num_branch) {
-    if (json_typecmp(item->comp->branch[first_index], type)
-        || IS_COMPOSITE(item->comp->branch[first_index]))
+  while (first_index < item->val.comp->num_branch) {
+    if (json_typecmp(item->val.comp->branch[first_index], type)
+        || IS_COMPOSITE(item->val.comp->branch[first_index]))
     {
-      _json_stringify_preorder(item->comp->branch[first_index], type, cxt);
+      _json_stringify_preorder(item->val.comp->branch[first_index], type, cxt);
       break;
     }
     ++first_index;
@@ -1318,13 +1366,13 @@ _json_stringify_preorder(json_item_t *item,
 
   /* 6th STEP: calls the write function on every consecutive branch
       that matches the type criteria, with an added comma before it */
-  for (j = first_index + 1; j < item->comp->num_branch; ++j) {
+  for (j = first_index + 1; j < item->val.comp->num_branch; ++j) {
     /* skips branch that don't fit the criteria */
     if (!json_typecmp(item, type) && !IS_COMPOSITE(item)) {
       continue;
     }
     (*cxt->method)(',', cxt);
-    _json_stringify_preorder(item->comp->branch[j], type, cxt);
+    _json_stringify_preorder(item->val.comp->branch[j], type, cxt);
   }
 
   /* 7th STEP: write the composite's type item wrapper token */
@@ -1344,25 +1392,28 @@ _json_stringify_preorder(json_item_t *item,
 struct sized_buffer
 json_stringify(json_item_t *root, enum json_type type)
 {
-  ASSERT_S(NULL != root, "Missing 'root'");
+  struct _stringify_context cxt = { { 0 }, NULL };
+  struct sized_buffer ret = { 0 };
+  json_item_t *hold_parent;
+  char *hold_key;
 
-  struct _stringify_context cxt = { .method = NULL };
+  ASSERT_S(NULL != root, "Missing 'root'");
 
   /* 1st STEP: remove root->key and root->parent temporarily to make
       sure the given item is treated as a root when printing, in the
       case that given item isn't already a root (roots donesn't have
       keys or parents) */
-  char *hold_key = root->key;
-  json_item_t *hold_parent = root->parent;
-  root->key = NULL;
+  hold_parent = root->parent;
+  hold_key = root->key;
   root->parent = NULL;
+  root->key = NULL;
 
   /* 2nd STEP: count how many chars will fill the buffer with
       _json_cxt_analyze, then allocate the buffer to that amount */
   cxt.method = &_json_cxt_analyze;
   _json_stringify_preorder(root, type, &cxt);
   cxt.buffer.start = malloc(cxt.buffer.size += 5); /* +5 for extra safety */
-  if (NULL == cxt.buffer.start) return (struct sized_buffer){ 0 };
+  if (NULL == cxt.buffer.start) return ret;
 
   /* 3rd STEP: reset buffer.size and proceed with
       _json_cxt_encode to fill allocated buffer */
@@ -1375,11 +1426,11 @@ json_stringify(json_item_t *root, enum json_type type)
   root->key = hold_key;
   root->parent = hold_parent;
 
-  struct sized_buffer ret = { 0 };
   if (!json_string_unescape(&ret.start, &ret.size, cxt.buffer.start,
                             cxt.buffer.size))
   {
     ERR("Cannot unescape an ill-formed-string %.*s", (int)ret.size, ret.start);
   }
+
   return ret;
 }
