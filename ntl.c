@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include "ntl.h"
 
@@ -261,7 +260,7 @@ ntl_to_buf(char *buf,
   tsize++;
 
   for (i = 0; p[i]; i++) {
-    bool is_last = (NULL == p[i + 1]);
+    int is_last = (NULL == p[i + 1]);
     psize = (*x)(buf, size, p[i]);
 
     if (start) {
@@ -398,7 +397,7 @@ ntl_from_buf2(char *buf, size_t len, struct ntl_deserializer *deserializer)
   return n_elems;
 }
 
-STATIC _Bool
+STATIC int
 ntl_is_a_member(ntl_t p, void *elem)
 {
   size_t i;

@@ -51,7 +51,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -204,7 +203,7 @@ POP(struct stack *s)
 
 struct access_path {
   struct sized_buffer key;
-  bool is_star; /* match any key and get its value */
+  int is_star; /* match any key and get its value */
   struct access_path *next;
 };
 
@@ -290,8 +289,8 @@ struct ptr_map {
   void **arg;
   int sizeof_arg;
   int enabled;
-  bool has_this;
-  bool has_enabler;
+  int has_this;
+  int has_enabler;
   int next_idx; /* only used for recorder */
   int xend_idx; /* exclusive end index */
 };
@@ -379,7 +378,7 @@ struct value {
     struct composite_value *cv;
     struct action action;
   } _;
-  bool is_applied;
+  int is_applied;
 };
 
 static void print_composite_value(FILE *fp, struct composite_value *cv);
@@ -681,7 +680,7 @@ parse_value(struct stack *stack,
   act->tag = ACT_BUILT_IN;
   switch (*pos) {
   case 'b':
-    act->mem_size.size = sizeof(bool);
+    act->mem_size.size = sizeof(int);
     act->mem_size.tag = SIZE_FIXED;
     act->_.builtin = B_BOOL;
     pos++;
@@ -714,7 +713,7 @@ parse_value(struct stack *stack,
   case 'k': {
     size_t sz = strlen("key");
     if (pos + sz <= end_pos && 0 == strncmp(pos, "key", sz)) {
-      act->mem_size.size = sizeof(bool);
+      act->mem_size.size = sizeof(int);
       act->mem_size.tag = SIZE_FIXED;
       act->_.builtin = B_KEY_EXISTENCE;
       pos += sz;
@@ -868,10 +867,10 @@ parse_pointer_maps(char *pos,
 
       if (pos + sz1 <= xend_pos && (0 == strncmp(pos, "arg_switches", sz1))) {
         p[next_map]->tag = PTR_MAP_ARG_SWITCHES;
-        p[next_map]->has_this = true;
+        p[next_map]->has_this = 1;
         pos += sz1;
         if (pos + 2 <= xend_pos && ':' == *pos && 'b' == *(pos + 1)) {
-          p[next_map]->has_enabler = true;
+          p[next_map]->has_enabler = 1;
           pos += 2;
         }
         *next_pos_p = pos;
@@ -880,10 +879,10 @@ parse_pointer_maps(char *pos,
       else if (pos + sz2 <= xend_pos
                && (0 == strncmp(pos, "record_defined", sz2))) {
         p[next_map]->tag = PTR_MAP_RECORD_DEFINED;
-        p[next_map]->has_this = true;
+        p[next_map]->has_this = 1;
         pos += sz2;
         if (pos + 2 <= xend_pos && ':' == *pos && 'b' == *(pos + 1)) {
-          p[next_map]->has_enabler = true;
+          p[next_map]->has_enabler = 1;
           pos += 2;
         }
         *next_pos_p = pos;
@@ -892,10 +891,10 @@ parse_pointer_maps(char *pos,
       else if (pos + sz3 <= xend_pos
                && (0 == strncmp(pos, "record_null", sz3))) {
         p[next_map]->tag = PTR_MAP_RECORD_NULL;
-        p[next_map]->has_this = true;
+        p[next_map]->has_this = 1;
         pos += sz3;
         if (pos + 2 <= xend_pos && ':' == *pos && 'b' == *(pos + 1)) {
-          p[next_map]->has_enabler = true;
+          p[next_map]->has_enabler = 1;
           pos += 2;
         }
         *next_pos_p = pos;
@@ -937,7 +936,7 @@ parse_access_path_value(struct stack *stack,
 
   curr_path->key.start = start_pos + 1;
   curr_path->key.size = len;
-  if (len == 1 && *(start_pos + 1) == '*') curr_path->is_star = true;
+  if (len == 1 && *(start_pos + 1) == '*') curr_path->is_star = 1;
 
   if (')' == *pos) ++pos; /* eat up ')' */
   SKIP_SPACES(pos, end_pos);
@@ -1324,7 +1323,7 @@ inject_builtin(char *pos,
   char *s;
   switch (v->_.builtin) {
   case B_BOOL:
-    if (*(bool *)v->operand)
+    if (*(int *)v->operand)
       return xprintf(pos, size, info, "true");
     else
       return xprintf(pos, size, info, "false");
@@ -1861,9 +1860,9 @@ extract_str(struct action *v, int i, struct extraction_info *info)
     ERR("expected string");
   }
 
-  bool is_null = false;
+  int is_null = 0;
   if (JSMN_PRIMITIVE == tokens[i].type && 'n' == json[tokens[i].start]) {
-    is_null = true;
+    is_null = 1;
   }
 
   size_t new_size = 0;
@@ -1925,9 +1924,9 @@ extract_scalar(struct action *a, int i, struct extraction_info *info)
     ERR("Token is not a primitive or string");
   }
 
-  bool is_null = false;
+  int is_null = 0;
   if (JSMN_PRIMITIVE == tokens[i].type && 'n' == json[tokens[i].start]) {
-    is_null = true;
+    is_null = 1;
   }
 
   switch (a->_.builtin) {
@@ -1985,10 +1984,10 @@ extract_scalar(struct action *a, int i, struct extraction_info *info)
     if (JSMN_PRIMITIVE == tokens[i].type) switch (json[tokens[i].start])
       {
       case 't':
-        *(bool *)a->operand = true;
+        *(int *)a->operand = 1;
         break;
       case 'f':
-        *(bool *)a->operand = false;
+        *(int *)a->operand = 0;
         break;
       default:
         ERR("failed to extract bool from %.*s\n",
@@ -2000,7 +1999,7 @@ extract_scalar(struct action *a, int i, struct extraction_info *info)
     add_defined(info->E, a->operand);
     break;
   case B_KEY_EXISTENCE:
-    *(bool *)a->operand = true;
+    *(int *)a->operand = 1;
     break;
   case B_LONG:
     if (is_null)
@@ -2170,7 +2169,7 @@ extract_value(struct value *v, int val_idx, struct extraction_info *info)
     ERR("extract does not support string literal\n");
     break;
   }
-  v->is_applied = true;
+  v->is_applied = 1;
   return ret;
 }
 
@@ -2223,7 +2222,7 @@ extract_access_path(int val_idx,
   }
   struct value *v = &apv->value;
   int ret = extract_value(v, val_idx, info);
-  apv->value.is_applied = true;
+  apv->value.is_applied = 1;
   if (ret) {
     /*print_access_path_value(stderr, apv); */
     /*fprintf(stderr, "< matched: "); */
@@ -2467,7 +2466,7 @@ parse_query_string(struct stack *stack,
   char *const start_pos = pos, *const end_pos = pos + size;
   struct sized_access_path_value *pairs = &cv->_.pairs;
   pairs->pos = calloc(MAX_ACTION_NUMBERS, sizeof(struct access_path_value));
-  cv->is_object = true;
+  cv->is_object = 1;
 
   size_t i = 0;
   while (pos < end_pos) {

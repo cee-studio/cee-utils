@@ -194,7 +194,7 @@ char *cee_timestamp_str(char *p_str, int len);
  * @return the string length on success, -1 on `NULL` string, and 0 if string
  * length is greater than threshold
  */
-ssize_t cee_str_bounds_check(const char *str, const size_t threshold_len);
+long long cee_str_bounds_check(const char *str, const size_t threshold_len);
 
 /**
  * @brief Concatenate an array of strings to a buffer

@@ -216,10 +216,11 @@ cee_timestamp_str(char *p_str, int len)
 
 /* this can be used for checking if a user-given string does not
  *  exceeds a arbitrary threshold length */
-ssize_t
+long long
 cee_str_bounds_check(const char *str, const size_t threshold_len)
 {
   size_t i;
+
   if (!str) return -1; /* Missing string */
 
   for (i = 0; i < threshold_len; ++i) {
