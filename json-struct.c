@@ -5,8 +5,10 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #include "json-actor.h"
 #include "cee-utils.h"
+#include "debug.h"
 
 /* generated code dependencies */
 static const char SPECS_DEPS_H[] = "#include <stdbool.h>\n"
