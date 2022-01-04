@@ -169,6 +169,7 @@ next(char ** p, char * e, bool html)
       if (!utf8_is_trail(tmp))
         return utf_illegal;
       c = (c << 6) | ( tmp & 0x3F);
+    /* fall-through */
     case 2:
       if(*p==e)
         return utf_illegal;
@@ -177,6 +178,7 @@ next(char ** p, char * e, bool html)
       if (!utf8_is_trail(tmp))
         return utf_illegal;
       c = (c << 6) | ( tmp & 0x3F);
+    /* fall-through */
     case 1:
       if(*p==e)
         return utf_illegal;
@@ -298,7 +300,7 @@ int
 json_string_unescape(char **output_p, size_t *output_len_p,
                      char *input, size_t input_len)
 {
-  unsigned char c;
+  char c;
   char * const input_start = input, * const input_end = input + input_len;
   char * out_start = NULL, * d = NULL, * s = NULL;
   uint16_t first_surrogate;
