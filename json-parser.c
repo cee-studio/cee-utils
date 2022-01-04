@@ -33,7 +33,9 @@
 #endif
 
 #include "json-actor.h"
+
 #include "cee-utils.h"
+#include "debug.h"
 
 #define MAX_INTEGER_DIG 20 /* ULLONG_MAX maximum amt of digits possible */
 
@@ -253,8 +255,6 @@ _json_decode_number(char **p_buffer)
   sprintf(numstr, "%.*s", MAX_INTEGER_DIG, start);
 
   *p_buffer = end; /* skips entire length of number */
-
-  DS_PRINT("%.*s, %f", (int)(end - start), start, strtod(numstr, NULL));
 
   return strtod(numstr, NULL);
 }
@@ -1020,12 +1020,13 @@ json_get_child(json_item_t *item, const char *key)
   long i;
 
   if (!IS_COMPOSITE(item)) {
-    log_error("Can't get child from '%s' (item type is %s)",
-              json_get_key(item), json_typeof(item));
+    PRINT("Can't get child from '%s' (item type is %s)", json_get_key(item),
+          json_typeof(item));
+
     return NULL;
   }
   if (!key) {
-    log_error("Missing 'key'");
+    PUTS("Missing 'key'");
     return NULL;
   }
 

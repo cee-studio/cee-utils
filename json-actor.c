@@ -249,6 +249,8 @@ enum action_type {
   ACT_USER_DEF_ACCEPT_NON_NULL_ENCLOSED,
   ACT_USER_DEF_ACCEPT_NULL_ENCLOSED,
   ACT_FORMAT_STRING = 10,
+  /* XXX: adding enumerators past this point will break ACT_FORMAT_STRING
+     logic, refer to get_value_operand_addrs() */
 };
 
 enum arg_type { ARG_PTR = 0, ARG_INT, ARG_DOUBLE };
@@ -374,7 +376,7 @@ enum value_type {
 struct value {
   enum value_type tag;
   union {
-    struct sized_buffer primitve;
+    struct sized_buffer primitive;
     struct composite_value *cv;
     struct action action;
   } _;
@@ -398,12 +400,12 @@ print_value(FILE *fp, struct value *v)
   case V_STRING_LITERAL: {
     size_t len;
     char *p =
-      json_string_escape(&len, v->_.primitve.start, v->_.primitve.size);
+      json_string_escape(&len, v->_.primitive.start, v->_.primitive.size);
     fprintf(fp, "\"%.*s\"\n", (int)len, p);
     break;
   }
   default:
-    fprintf(fp, "%.*s\n", (int)v->_.primitve.size, v->_.primitve.start);
+    fprintf(fp, "%.*s\n", (int)v->_.primitive.size, v->_.primitive.start);
     break;
   }
 }
@@ -485,7 +487,7 @@ print_composite_value(FILE *fp, struct composite_value *cv)
 
 /*
  * we only count how many format specifiers are used
- * @todo analyze what format specifiers are used.
+ * TODO: analyze what format specifiers are used.
  */
 static int
 has_format_string(char *pos, char *end_pos)
@@ -493,29 +495,29 @@ has_format_string(char *pos, char *end_pos)
   int count = 0;
 
   while (pos < end_pos) {
-    if ('%' == *pos) {
-      VASSERT_S(pos + 1 != end_pos, "dangling format %s string is not allowed",
-                pos);
+    if (*pos != '%') {
       pos++;
-
-      switch (*pos) {
-      case '%': /* escaped % */
-        pos++;
-        break;
-      case '.':
-        if (pos + 2 < end_pos && '*' == *(pos + 1) && 's' == *(pos + 2)) {
-          count += 2;
-          pos += 3;
-        }
-        break;
-      default: /* other format string */
-        count++;
-        pos++;
-        break;
-      }
+      continue;
     }
-    else
+
+    VASSERT_S(pos + 1 != end_pos, "dangling format %s string is not allowed",
+              pos);
+
+    switch (*++pos) {
+    case '%': /* escaped % */
       pos++;
+      break;
+    case '.':
+      if (pos + 2 < end_pos && '*' == *(pos + 1) && 's' == *(pos + 2)) {
+        count += 2;
+        pos += 3;
+      }
+      break;
+    default: /* other format string */
+      count++;
+      pos++;
+      break;
+    }
   }
 
   return count;
@@ -534,21 +536,19 @@ is_primitive(struct stack *stack,
   *type = V_PRIMITIVE;
   switch (c = *pos) {
   case 't': /* true */
-    if (pos + 3 < end_pos && 'r' == pos[1] && 'u' == pos[2] && 'e' == pos[3]) {
+    if (pos + 3 < end_pos && 0 == strncmp(pos + 1, "rue", 3)) {
       pos += 4;
       goto return_true;
     }
     break;
   case 'f': /* false */
-    if (pos + 4 < end_pos && 'a' == pos[1] && 'l' == pos[2] && 's' == pos[3]
-        && 'e' == pos[4])
-    {
+    if (pos + 4 < end_pos && 0 == strncmp(pos + 1, "alse", 4)) {
       pos += 5;
       goto return_true;
     }
     break;
   case 'n': /* null */
-    if (pos + 3 < end_pos && 'u' == pos[1] && 'l' == pos[2] && 'l' == pos[3]) {
+    if (pos + 3 < end_pos && 0 == strncmp(pos + 1, "ull", 3)) {
       pos += 4;
       goto return_true;
     }
@@ -565,19 +565,23 @@ is_primitive(struct stack *stack,
   case '|': /* a proprietary string literal */
     if (0 == strncmp("|F|", pos, 3)) {
       *type = V_ACTION;
-      return 0;
+      break;
     }
+
     *type = V_STRING_LITERAL;
     pos++;
+
     while (pos < end_pos) {
       c = *pos;
       pos++;
       if ('|' == c) goto return_true;
     }
+
     break;
   default:
     if ('0' <= c && c <= '9') {
       pos++;
+
       while (pos < end_pos) {
         c = *pos;
         if (' ' == c || ',' == c || '(' == c || c == TOP(stack))
@@ -588,10 +592,12 @@ is_primitive(struct stack *stack,
           ERR("unexpected %c in %s\n", c, start_pos);
         }
       }
+
       goto return_true;
     }
     break;
   }
+
   return 0;
 
 return_true:
@@ -642,22 +648,20 @@ parse_value(struct stack *stack,
 
   if (is_primitive(stack, pos, size, &next_pos, &v_type)) {
     p->tag = v_type;
-    p->_.primitve.start = pos;
-    p->_.primitve.size = next_pos - pos;
+    p->_.primitive.start = pos;
+    p->_.primitive.size = next_pos - pos;
+
     if (v_type == V_STRING_LITERAL) {
       int n;
 
       /* skip the two delimiter */
-      p->_.primitve.start++;
-      p->_.primitve.size -= 2;
-      n = has_format_string(p->_.primitve.start,
-                            p->_.primitve.start + p->_.primitve.size);
-      if (n) {
-        char *x = p->_.primitve.start;
-        size_t s = p->_.primitve.size;
+      p->_.primitive.start++;
+      p->_.primitive.size -= 2;
 
-        p->_.action._.fmt.start = x;
-        p->_.action._.fmt.size = s;
+      n = has_format_string(p->_.primitive.start,
+                            p->_.primitive.start + p->_.primitive.size);
+      if (n) {
+        p->_.action._.fmt = p->_.primitive;
         p->tag = V_ACTION;
         p->_.action.tag = ACT_FORMAT_STRING + n;
       }
@@ -919,27 +923,29 @@ parse_access_path_value(struct stack *stack,
 {
   char *const start_pos = pos, *const end_pos = pos + size, *next_pos = NULL;
   int len = 0;
+
   ASSERT_S('(' == *pos || '.' == *pos, "expecting '(' or '.'");
-  pos++;
-  while (pos < end_pos) {
+
+  for (pos++; pos < end_pos; ++pos) {
     if (')' == *pos)
       break;
     else if ('.' == *pos)
       break;
-    ++pos;
   }
-
-  if (pos == end_pos) ERR("A close bracket ')' or '.' is missing");
+  ASSERT_S(pos != end_pos, "A close bracket ')' or '.' is missing");
 
   len = pos - start_pos - 1;
-  if (len == 0) ERR("Key is missing");
+  ASSERT_S(len != 0, "Key is missing");
 
   curr_path->key.start = start_pos + 1;
   curr_path->key.size = len;
+
   if (len == 1 && *(start_pos + 1) == '*') curr_path->is_star = 1;
 
   if (')' == *pos) ++pos; /* eat up ')' */
+
   SKIP_SPACES(pos, end_pos);
+
   struct access_path *next_path;
   switch (*pos) {
   case '(':
@@ -948,12 +954,16 @@ parse_access_path_value(struct stack *stack,
 
     next_path = calloc(1, sizeof(struct access_path));
     curr_path->next = next_path;
+
     return parse_access_path_value(stack, pos, end_pos - pos, av, next_path);
   case ':':
     ++pos; /* eat up ':' */
+
     SKIP_SPACES(pos, end_pos);
+
     if ('[' == *pos || '{' == *pos) {
       struct composite_value *cv = composite_value_alloc();
+
       av->value._.cv = cv;
       av->value.tag = V_COMPOSITE_VALUE;
       pos = parse_composite_value(stack, pos, end_pos - pos, cv);
@@ -966,6 +976,7 @@ parse_access_path_value(struct stack *stack,
   default:
     ERR("expecting '(', '.', or ':', but getting %c\n", *pos);
   }
+
   return pos;
 }
 
@@ -976,11 +987,13 @@ parse_access_path_value_list(struct stack *stack,
                              struct sized_access_path_value *pairs)
 {
   char *const start_pos = pos, *const end_pos = pos + size;
+  size_t i = 0;
+
   pairs->pos = calloc(MAX_ACTION_NUMBERS, sizeof(struct access_path_value));
 
-  size_t i = 0;
   while (pos < end_pos) {
     SKIP_SPACES(pos, end_pos);
+
     if (0 != i && ',' == *pos) {
       pos++;
       continue;
@@ -993,12 +1006,15 @@ parse_access_path_value_list(struct stack *stack,
     else if (0 == stack->top || TOP(stack) == *pos) {
       ASSERT_S(i < MAX_ACTION_NUMBERS, "exceed max allowed actions\n");
       pairs->size = i;
+
       return pos;
     }
     else
       ERR("Expecting %c, but found %c in %s", TOP(stack), *pos, start_pos);
   }
+
   pairs->size = i;
+
   return pos;
 }
 
@@ -1009,23 +1025,28 @@ parse_value_list(struct stack *stack,
                  struct sized_value *elements)
 {
   char *const end_pos = pos + size;
-  elements->pos = calloc(MAX_ACTION_NUMBERS, sizeof(struct value));
   char *next_pos = NULL;
-
   size_t i = 0;
+
+  elements->pos = calloc(MAX_ACTION_NUMBERS, sizeof(struct value));
+
   while (pos < end_pos) {
     SKIP_SPACES(pos, end_pos);
+
     if ('#' == *pos) {
       pos++;
       if (0 != i) ERR("# has to be the only symbol between []\n");
 
       SKIP_SPACES(pos, end_pos);
+
       if (TOP(stack) == *pos) {
         struct value *v = elements->pos;
+
         v->tag = V_ACTION;
         v->_.action.tag = ACT_BUILT_IN;
         v->_.action._.builtin = B_LIST;
         elements->size = 1;
+
         return pos;
       }
       else
@@ -1042,14 +1063,18 @@ parse_value_list(struct stack *stack,
     }
     else if (TOP(stack) == *pos) {
       ASSERT_S(i < MAX_ACTION_NUMBERS, "exceed max allowed actions\n");
+
       elements->size = i;
+
       return pos;
     }
     else {
       ERR("Unexpected %c in %s", *pos, pos);
     }
   }
+
   elements->size = i;
+
   return pos;
 }
 
@@ -1063,27 +1088,38 @@ parse_composite_value(struct stack *stack,
   char c;
 
   SKIP_SPACES(pos, end_pos);
+
   switch (*pos) {
   case '{':
     cv->is_object = 1;
+
     pos++;
     PUSH(stack, '}');
+
     pos =
       parse_access_path_value_list(stack, pos, end_pos - pos, &cv->_.pairs);
     c = POP(stack);
-    if (c != *pos)
+    if (c != *pos) {
       ERR("Mismatched stack: expecting %c, but getting %c\n", c, *pos);
+    }
+
     pos++;
+
     break;
   case '[':
     cv->is_object = 0;
+
     pos++;
     PUSH(stack, ']');
+
     pos = parse_value_list(stack, pos, end_pos - pos, &cv->_.elements);
     c = POP(stack);
-    if (c != *pos)
+    if (c != *pos) {
       ERR("Mismatched stack: expecting %c, but getting %c\n", c, *pos);
+    }
+
     pos++;
+
     break;
   default:
     ERR("unexpected %c in %s\n", *pos, start_pos);
@@ -1099,29 +1135,39 @@ parse_actor(struct stack *stack,
 {
   /* work around the incompatible pointer warning */
   char *const start_pos = pos, *const end_pos = pos + size;
+
   SKIP_SPACES(pos, end_pos);
+
   while (pos < end_pos) {
+    char *next_pos = NULL;
+
     if ('{' == *pos || '[' == *pos) {
       pos = parse_composite_value(stack, pos, end_pos - pos, cv);
     }
     else if ('(' == *pos || '|' == *pos) {
       cv->is_object = 1;
+
       pos =
         parse_access_path_value_list(stack, pos, end_pos - pos, &cv->_.pairs);
     }
+
     SKIP_SPACES(pos, end_pos);
-    char *next_pos = NULL;
+
     if ('@' == *pos
-        && parse_pointer_maps(pos, end_pos - pos, cv->maps, &next_pos))
+        && parse_pointer_maps(pos, end_pos - pos, cv->maps, &next_pos)) {
       pos = next_pos;
+    }
+
     SKIP_SPACES(pos, end_pos);
-    if (pos == end_pos)
-      return pos;
-    else if (pos != end_pos)
-      ERR("unexpected %s@[%zu] before end, "
-          "in %s[%zu]\n",
-          pos, (size_t)(end_pos - pos), start_pos, (size_t)(pos - start_pos));
+
+    if (pos != end_pos) {
+      ERR("unexpected %s@[%zu] before end, in %s[%zu]\n", pos,
+          (size_t)(end_pos - pos), start_pos, (size_t)(pos - start_pos));
+    }
+
+    return pos;
   }
+
   return 0;
 }
 
@@ -1138,18 +1184,25 @@ static void get_composite_value_operand_addrs(struct composite_value *cv,
 static void
 get_value_operand_addrs(struct value *v, struct operand_addrs *rec)
 {
-  struct action *act;
   switch (v->tag) {
-  case V_ACTION:
-    act = &v->_.action;
+  default:
+    break;
+  case V_COMPOSITE_VALUE:
+    get_composite_value_operand_addrs(v->_.cv, rec);
+    break;
+  case V_ACTION: {
+    struct action *act = &v->_.action;
+
     switch (act->tag) {
     case ACT_BUILT_IN:
       if (SIZE_PARAMETERIZED == act->mem_size.tag) {
         rec->addrs[rec->pos] = &act->mem_size.size;
         rec->pos++;
       }
+
       rec->addrs[rec->pos] = &act->operand;
       rec->pos++;
+
       break;
     case ACT_USER_DEF_ACCEPT_NON_NULL:
     case ACT_USER_DEF_ACCEPT_NULL:
@@ -1157,16 +1210,17 @@ get_value_operand_addrs(struct value *v, struct operand_addrs *rec)
     case ACT_USER_DEF_ACCEPT_NULL_ENCLOSED:
       rec->addrs[rec->pos] = &act->_.user_def;
       rec->pos++;
+
       rec->addrs[rec->pos] = &act->operand;
       rec->pos++;
       break;
     default:
       if (act->tag > ACT_FORMAT_STRING) {
-        int i;
         int n = act->tag - ACT_FORMAT_STRING;
+        int i;
 
         for (i = 0; i < n; i++) {
-          /*@todo analyze native format string
+          /*TODO: analyze native format string
             to find out the argument types */
           rec->addrs[rec->pos] = &act->fmt_args[i]._;
           rec->may_not_be_ptr[rec->pos] = 1;
@@ -1175,12 +1229,8 @@ get_value_operand_addrs(struct value *v, struct operand_addrs *rec)
       }
       break;
     }
-    break;
-  case V_COMPOSITE_VALUE:
-    get_composite_value_operand_addrs(v->_.cv, rec);
-    break;
-  default:
-    break;
+
+  } break;
   }
 }
 
@@ -1191,9 +1241,11 @@ get_composite_value_operand_addrs(struct composite_value *cv,
   struct access_path_value *apv;
   struct value *v;
   size_t i;
+
   if (cv->is_object)
     for (i = 0; i < cv->_.pairs.size; i++) {
       apv = cv->_.pairs.pos + i;
+
       if (apv->path.is_star && apv->path.next == NULL) {
         rec->addrs[rec->pos] = &(apv->value._.action.key);
         rec->types[rec->pos] = ARG_PTR;
@@ -1215,6 +1267,7 @@ get_composite_value_operand_addrs(struct composite_value *cv,
     rec->addrs[rec->pos] = &m->arg;
     rec->types[rec->pos] = ARG_PTR;
     rec->pos++;
+
     rec->addrs[rec->pos] = &m->sizeof_arg;
     rec->types[rec->pos] = ARG_INT;
     rec->pos++;
@@ -1291,16 +1344,20 @@ xprintf(char *pos, size_t size, struct injection_info *info, char *format, ...)
 {
   int ret1 = 0, ret2 = 0;
   va_list ap;
+
   va_start(ap, format);
   ret1 = vsnprintf(pos, size, format, ap);
   va_end(ap);
+
   ASSERT_S(ret1 >= 0, "vsnprintf");
 
   if (info->fp) {
     va_list ap;
+
     va_start(ap, format);
     ret2 = vfprintf(info->fp, format, ap);
     va_end(ap);
+
     ASSERT_S(ret2 >= 0, "vfprintf");
     ASSERT_S(ret2 == ret1, "errror");
   }
@@ -1318,9 +1375,10 @@ inject_builtin(char *pos,
                struct action *v,
                struct injection_info *info)
 {
+  char *s;
+
   if (NULL == v->operand) return xprintf(pos, size, info, "null");
 
-  char *s;
   switch (v->_.builtin) {
   case B_BOOL:
     if (*(int *)v->operand)
@@ -1350,10 +1408,12 @@ inject_builtin(char *pos,
   case B_DOUBLE:
     return xprintf(pos, size, info, "%lf", *(double *)v->operand);
   case B_STRING: {
-    s = (char *)v->operand;
     size_t len;
     int ret = 0;
     char *escaped;
+
+    s = (char *)v->operand;
+
     switch (v->mem_size.tag) {
     case SIZE_UNKNOWN:
     case SIZE_ZERO:
@@ -1406,7 +1466,7 @@ static int inject_composite_value(char *,
                                   struct injection_info *);
 
 /*
- * @todo the injection need to detect argument size
+ * TODO: the injection need to detect argument size
  * the current implementation won't work for double
  */
 static int
@@ -1418,6 +1478,8 @@ inject_format_string(char *pos,
 {
   char *p = NULL;
   char *format;
+  int ret;
+
   cee_strndup(sbuf->start, sbuf->size, &format);
   switch (n) {
   case 1:
@@ -1448,12 +1510,16 @@ inject_format_string(char *pos,
     ERR("format string '%s' has %d, which is more than 8 arguments\n", format,
         n);
   }
-  /*@todo we should escape p */
-  int ret = snprintf(pos, size, "\"%s\"", p);
+
+  /* TODO: we should escape p */
+  ret = snprintf(pos, size, "\"%s\"", p);
+
   free(p);
   free(format);
+
   return ret;
 }
+
 static int
 inject_value(char *pos,
              size_t size,
@@ -1505,6 +1571,7 @@ inject_value(char *pos,
           info->next_pos = NULL;
         else
           info->next_pos = pos + used_bytes;
+
         return used_bytes;
       }
       break;
@@ -1514,12 +1581,12 @@ inject_value(char *pos,
   case V_COMPOSITE_VALUE:
     return inject_composite_value(pos, size, v->_.cv, info);
   case V_PRIMITIVE:
-    return xprintf(pos, size, info, "%.*s", v->_.primitve.size,
-                   v->_.primitve.start);
+    return xprintf(pos, size, info, "%.*s", v->_.primitive.size,
+                   v->_.primitive.start);
   case V_STRING_LITERAL: {
     size_t len;
     char *p =
-      json_string_escape(&len, v->_.primitve.start, v->_.primitve.size);
+      json_string_escape(&len, v->_.primitive.start, v->_.primitive.size);
     return xprintf(pos, size, info, "\"%.*s\"", len, p);
   }
   default:
@@ -1539,7 +1606,7 @@ inject_access_path_value(char *pos,
                         ap->path.key.start);
   pos = info->next_pos;
   if (ap->path.next) {
-    /* @todo */
+    /* TODO: */
     ERR("does not support %.*s.%.*s yet\n", (int)ap->path.key.size,
         ap->path.key.start, (int)ap->path.next->key.size,
         ap->path.next->key.start);
@@ -1678,41 +1745,37 @@ prepare_actor(
   char *actor,
   va_list ap)
 {
-  void *p;
   size_t len = strlen(actor);
+  char *next_pos;
+  size_t i;
+
   composite_value_init(cv);
-  char *next_pos = parser(stack, actor, len, cv);
+
+  next_pos = parser(stack, actor, len, cv);
   if (next_pos != actor + len) {
     ERR("unexpected %s\n", next_pos);
   }
   memset(operand_addrs, 0, sizeof(*operand_addrs));
+
   get_composite_value_operand_addrs(cv, operand_addrs);
-  size_t i;
 
   for (i = 0; i < operand_addrs->pos; i++) {
     switch (operand_addrs->types[i]) {
-    case ARG_PTR:
-      p = va_arg(ap, void *);
+    case ARG_PTR: {
+      void *p = va_arg(ap, void *);
       *((void **)operand_addrs->addrs[i]) = p;
-      DS_PRINT("load pointer %p as %dth operand to store in %p\n", p, i,
-               operand_addrs->addrs[i]);
-      break;
+    } break;
     case ARG_INT: {
       int iv = va_arg(ap, int);
       *((int *)operand_addrs->addrs[i]) = iv;
-      DS_PRINT("load int %d as %dth operand to store in %p\n", iv, i,
-               operand_addrs->addrs[i]);
-      break;
-    }
+    } break;
     case ARG_DOUBLE: {
       double dv = va_arg(ap, double);
       *((double *)operand_addrs->addrs[i]) = dv;
-      DS_PRINT("load double %lf as %dth operand to store in %p\n", dv, i,
-               operand_addrs->addrs[i]);
-      break;
-    }
+    } break;
     }
   }
+
   return 1;
 }
 
@@ -1890,9 +1953,9 @@ extract_str(struct action *v, int i, struct extraction_info *info)
       ((char *)v->operand)[0] = 0;
     }
     else {
-      int ret = snprintf((char *)v->operand, v->mem_size.size, "%.*s",
-                         tokens[i].end - tokens[i].start, escaped);
-      ASSERT_S((size_t)ret < v->mem_size.size, "out-of-bounds write");
+      size_t ret = snprintf((char *)v->operand, v->mem_size.size, "%.*s",
+                            tokens[i].end - tokens[i].start, escaped);
+      ASSERT_S(ret < v->mem_size.size, "out-of-bounds write");
     }
     add_defined(info->E, v->operand);
     break;
@@ -2364,7 +2427,6 @@ json_vextract(char *json, size_t size, char *extractor, va_list ap)
   jsmn_init(&parser);
   int num_tok = jsmn_parse(&parser, json, size, NULL, 0);
   JSMN_CHECK(num_tok, json, size);
-  DS_PRINT("# of tokens = %d", num_tok);
 
   jsmntok_t *tokens = malloc(sizeof(jsmntok_t) * num_tok);
 
@@ -2597,7 +2659,6 @@ json_to_sized_buffer_ntl(char *json,
   jsmn_init(&parser);
   jsmntok_t *tokens = NULL;
   num_tok = jsmn_parse(&parser, json, size, NULL, 0);
-  DS_PRINT("# of tokens = %d", num_tok);
   JSMN_CHECK(num_tok, json, size);
 
   tokens = malloc(sizeof(jsmntok_t) * num_tok);

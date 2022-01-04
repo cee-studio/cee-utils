@@ -196,13 +196,16 @@ ns_to_symbol_name(char *name)
   size_t len;
   FILE *fp = open_memstream(&buf, &len);
   int s, i;
+
   for (s = 0; s < global_option.stack_top; s++) {
     NTL_T(name_t) ns = global_option.namespace_stack[s];
     for (i = 0; ns[i]; i++)
       fprintf(fp, "%s_", (char *)ns[i]);
   }
+
   fprintf(fp, "%s", name);
   fclose(fp);
+
   return buf;
 }
 
