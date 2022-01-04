@@ -39,7 +39,7 @@ int main()
   fprintf (stderr, "%d, %d, %d\n", i, j, k);
 
   char *key;
-  bool  flag;
+  int  flag;
   json = "{\"a\":true}";
   json_extract(json, strlen(json), "(*):b", &key, &flag);
   fprintf (stderr, "%s:%d\n", key, flag);
@@ -79,11 +79,11 @@ int main()
       char level[128];
       struct {
         char filename[PATH_MAX];
-        bool enable;
+        int enable;
       } dump_json;
       struct {
         char filename[PATH_MAX];
-        bool enable;
+        int enable;
       } dump_curl;
     } logging;
   } settings;
